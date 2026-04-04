@@ -1,0 +1,22 @@
+{
+  "name": "opencode-chrome",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chrome extension for OpenCode browser automation",
+  "workspaces": [
+    "shared",
+    "extension",
+    "native-host",
+    "mcp-server"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "build:shared": "npm run build -w shared",
+    "test": "npm run test --workspaces --if-present",
+    "test:shared": "npm run test -w shared",
+    "clean": "npm run clean --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

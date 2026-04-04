@@ -1,0 +1,17 @@
+{
+  "name": "@opencode-chrome/extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chrome extension (MV3) for OpenCode browser automation",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'TODO: extension build'",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@opencode-chrome/shared": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

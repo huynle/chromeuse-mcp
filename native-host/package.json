@@ -1,0 +1,17 @@
+{
+  "name": "@opencode-chrome/native-host",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Native messaging host bridging Chrome extension to MCP server",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'TODO: native-host build'",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@opencode-chrome/shared": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}
