@@ -204,38 +204,65 @@ const TOOL_SCHEMAS: Tool[] = [
   {
     name: TOOL_NAMES.READ_CONSOLE,
     description:
-      "Read browser console messages (log, warn, error, info). Messages are captured since the last navigation.",
+      "Read browser console messages captured via CDP. Messages include level, text, timestamp, source URL, and line number. Captured since CDP attachment.",
     inputSchema: {
       type: "object",
       properties: {
+        tabId: {
+          type: "number",
+          description: "The tab to read console messages from",
+        },
+        clear: {
+          type: "boolean",
+          description:
+            "If true, clears stored messages after returning them (default: false)",
+        },
+        level: {
+          type: "string",
+          enum: ["log", "debug", "info", "warning", "error"],
+          description: "Filter by log level. Returns all levels if omitted.",
+        },
         limit: {
           type: "number",
-          description: "Maximum number of messages to return (default: 50)",
-        },
-        filter: {
-          type: "string",
-          enum: ["log", "warn", "error", "info"],
-          description: "Filter by message type",
+          description:
+            "Maximum number of messages to return, most recent first (default: 100)",
         },
       },
+      required: ["tabId"],
     },
   },
   {
     name: TOOL_NAMES.READ_NETWORK,
     description:
-      "Read captured network requests. Shows method, status, and URL for recent requests.",
+      "Read captured network requests via CDP. Shows URL, method, resource type, status, mimeType, and response timing.",
     inputSchema: {
       type: "object",
       properties: {
+        tabId: {
+          type: "number",
+          description: "The tab to read network requests from",
+        },
+        clear: {
+          type: "boolean",
+          description:
+            "If true, clears stored requests after returning them (default: false)",
+        },
+        urlPattern: {
+          type: "string",
+          description: "Filter requests by URL substring match",
+        },
+        method: {
+          type: "string",
+          description:
+            'Filter by HTTP method (e.g., "GET", "POST"). Case-insensitive.',
+        },
         limit: {
           type: "number",
-          description: "Maximum number of requests to return (default: 50)",
-        },
-        filter: {
-          type: "string",
-          description: "URL substring filter",
+          description:
+            "Maximum number of requests to return, most recent first (default: 100)",
         },
       },
+      required: ["tabId"],
     },
   },
   {
