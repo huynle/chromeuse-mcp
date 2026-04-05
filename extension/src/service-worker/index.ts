@@ -13,7 +13,6 @@
  * handlers, and sends results back.
  */
 
-import { TOOL_NAMES } from "@opencode-chrome/shared";
 import { nativeMessaging } from "./nativeMessaging.js";
 import { messageRouter } from "./messageRouter.js";
 import { updateBadge } from "./badge.js";
@@ -22,23 +21,7 @@ import {
   initSidePanelHandler,
   setConnectionStatus,
 } from "./sidePanelHandler.js";
-
-// Tool handlers
-import { ComputerTool } from "./tools/computer.js";
-import { FileUploadTool } from "./tools/fileUpload.js";
-import { FindTool } from "./tools/find.js";
-import { FormInputTool } from "./tools/formInput.js";
-import { GetPageTextTool } from "./tools/getPageText.js";
-import { JavaScriptTool } from "./tools/javascript.js";
-import { NavigateTool } from "./tools/navigate.js";
-import { ReadPageTool } from "./tools/readPage.js";
-import { GifCreatorTool } from "./tools/gifCreator.js";
-import { ResizeTool } from "./tools/resize.js";
-import { TabsCloseTool } from "./tools/tabsClose.js";
-import { TabsContextTool } from "./tools/tabsContext.js";
-import { TabsCreateTool } from "./tools/tabsCreate.js";
-import { ConsoleTool } from "./tools/console.js";
-import { NetworkTool } from "./tools/network.js";
+import { registerTools } from "./tools/index.js";
 
 // ---------------------------------------------------------------------------
 // Initialization
@@ -48,26 +31,7 @@ console.log("[ServiceWorker] OpenCode Browser extension starting");
 
 // --- Tool registration ---
 
-messageRouter.register(TOOL_NAMES.COMPUTER, new ComputerTool());
-messageRouter.register(TOOL_NAMES.FILE_UPLOAD, new FileUploadTool());
-messageRouter.register(TOOL_NAMES.FIND, new FindTool());
-messageRouter.register(TOOL_NAMES.FORM_INPUT, new FormInputTool());
-messageRouter.register(TOOL_NAMES.GET_PAGE_TEXT, new GetPageTextTool());
-messageRouter.register(TOOL_NAMES.JAVASCRIPT, new JavaScriptTool());
-messageRouter.register(TOOL_NAMES.NAVIGATE, new NavigateTool());
-messageRouter.register(TOOL_NAMES.READ_PAGE, new ReadPageTool());
-messageRouter.register(TOOL_NAMES.GIF_CREATOR, new GifCreatorTool());
-messageRouter.register(TOOL_NAMES.RESIZE_WINDOW, new ResizeTool());
-messageRouter.register(TOOL_NAMES.TABS_CLOSE, new TabsCloseTool());
-messageRouter.register(TOOL_NAMES.TABS_CONTEXT, new TabsContextTool());
-messageRouter.register(TOOL_NAMES.TABS_CREATE, new TabsCreateTool());
-messageRouter.register(TOOL_NAMES.READ_CONSOLE, new ConsoleTool());
-messageRouter.register(TOOL_NAMES.READ_NETWORK, new NetworkTool());
-
-console.log(
-  "[ServiceWorker] Tools registered:",
-  messageRouter.getRegisteredTools().join(", "),
-);
+registerTools(messageRouter);
 
 // --- Side panel handler ---
 
