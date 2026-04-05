@@ -1,10 +1,11 @@
 /**
  * esbuild configuration for the OpenCode Chrome Extension.
  *
- * Bundles three entry points for Chrome MV3:
+ * Bundles four entry points for Chrome MV3:
  *   1. Service Worker (background script) — ESM, no splitting
  *   2. Content Scripts (injected into pages) — IIFE (no module support)
  *   3. Offscreen Document — ESM, no splitting
+ *   4. Side Panel — ESM, no splitting
  *
  * Usage:
  *   npx tsx esbuild.config.ts          # Build once
@@ -61,6 +62,13 @@ const offscreenOptions: esbuild.BuildOptions = {
   splitting: false,
 }
 
+/** Side panel: loaded as ES module from sidepanel.html */
+const sidePanelOptions: esbuild.BuildOptions = {
+  ...sharedOptions,
+  entryPoints: [join(__dirname, 'src/sidepanel/index.ts')],
+  splitting: false,
+}
+
 // ─── Static assets ──────────────────────────────────────────────────────────
 
 function copyStaticAssets(): void {
@@ -82,6 +90,7 @@ async function build(): Promise<void> {
       esbuild.context(serviceWorkerOptions),
       esbuild.context(contentScriptOptions),
       esbuild.context(offscreenOptions),
+      esbuild.context(sidePanelOptions),
     ])
 
     copyStaticAssets()
@@ -94,6 +103,7 @@ async function build(): Promise<void> {
       esbuild.build(serviceWorkerOptions),
       esbuild.build(contentScriptOptions),
       esbuild.build(offscreenOptions),
+      esbuild.build(sidePanelOptions),
     ])
 
     copyStaticAssets()

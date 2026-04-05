@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenCode</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <!-- Connection status -->
+  <header id="status-bar">
+    <div class="status-indicator">
+      <span id="status-dot" class="dot disconnected"></span>
+      <span id="status-text">Disconnected</span>
+    </div>
+    <button id="stop-btn" class="stop-btn" disabled>Stop</button>
+  </header>
+
+  <!-- Tool execution history -->
+  <section id="history-section">
+    <h2>Tool History</h2>
+    <div id="tool-history" class="tool-list">
+      <p class="empty-state">No tool executions yet.</p>
+    </div>
+  </section>
+
+  <script src="dist/sidepanel/index.js" type="module"></script>
+</body>
+</html>
