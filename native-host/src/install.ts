@@ -260,7 +260,12 @@ async function main(): Promise<void> {
   // Resolve the path to the native host entry point
   const __dirname = dirname(fileURLToPath(import.meta.url))
   const nativeHostBin = resolve(__dirname, 'index.js')
-  const command = `node "${nativeHostBin}"`
+
+  // Use the full path to the current Node.js binary.
+  // Chrome launches native hosts with a minimal environment where PATH
+  // may not include Homebrew, nvm, or other user-installed Node locations.
+  const nodeBin = process.execPath
+  const command = `"${nodeBin}" "${nativeHostBin}"`
 
   // Extension IDs - the unpacked extension ID will vary per developer,
   // so we allow passing extra IDs via CLI args or env var

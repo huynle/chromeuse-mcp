@@ -402,9 +402,45 @@ export class ComputerTool implements ToolHandler {
     button: "left" | "right",
     clickCount: number,
   ): Promise<ToolResult> {
-    const coords = this.extractCoords(args);
+    let coords = this.extractCoords(args);
+
+    // Support ref-based click: resolve element bounds from content script
+    if (!coords && typeof args.ref === "string") {
+      try {
+        const response = (await chrome.tabs.sendMessage(tabId, {
+          action: "find_by_ref",
+          ref: args.ref,
+        })) as {
+          success: boolean;
+          bounds?: { x: number; y: number; width: number; height: number };
+        };
+        if (response?.success && response.bounds) {
+          // Click at center of element (these are viewport coords, not screenshot coords)
+          coords = {
+            x: Math.round(response.bounds.x + response.bounds.width / 2),
+            y: Math.round(response.bounds.y + response.bounds.height / 2),
+          };
+          // Skip screenshot coordinate mapping since these are already viewport coords
+          const viewport = await getViewportSize(tabId);
+          await dispatchMouseEvent(tabId, "mouseMoved", coords.x, coords.y);
+          await dispatchMouseEvent(tabId, "mousePressed", coords.x, coords.y, button, clickCount);
+          await sleep(CLICK_DELAY_MS);
+          await dispatchMouseEvent(tabId, "mouseReleased", coords.x, coords.y, button, clickCount);
+          return this.success(
+            `${button === "right" ? "Right-clicked" : clickCount === 2 ? "Double-clicked" : "Clicked"} element ${args.ref} at (${coords.x}, ${coords.y})`,
+          );
+        } else {
+          return this.error(`Element not found: ${args.ref}`);
+        }
+      } catch (err) {
+        return this.error(
+          `Failed to resolve ref ${args.ref}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
     if (!coords) {
-      return this.error("Missing required arguments: x (number), y (number)");
+      return this.error("Missing required arguments: x and y (numbers), or ref (string)");
     }
 
     const viewport = await getViewportSize(tabId);
