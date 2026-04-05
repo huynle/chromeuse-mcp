@@ -21,6 +21,7 @@ import { cdpManager } from "./cdp.js";
 import { initSidePanelHandler } from "./sidePanelHandler.js";
 
 // Tool handlers
+import { ComputerTool } from "./tools/computer.js";
 import { FileUploadTool } from "./tools/fileUpload.js";
 import { FindTool } from "./tools/find.js";
 import { FormInputTool } from "./tools/formInput.js";
@@ -37,6 +38,7 @@ console.log("[ServiceWorker] OpenCode Browser extension starting");
 
 // --- Tool registration ---
 
+messageRouter.register(TOOL_NAMES.COMPUTER, new ComputerTool());
 messageRouter.register(TOOL_NAMES.FILE_UPLOAD, new FileUploadTool());
 messageRouter.register(TOOL_NAMES.FIND, new FindTool());
 messageRouter.register(TOOL_NAMES.FORM_INPUT, new FormInputTool());
