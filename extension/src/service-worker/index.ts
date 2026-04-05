@@ -18,7 +18,10 @@ import { nativeMessaging } from "./nativeMessaging.js";
 import { messageRouter } from "./messageRouter.js";
 import { updateBadge } from "./badge.js";
 import { cdpManager } from "./cdp.js";
-import { initSidePanelHandler } from "./sidePanelHandler.js";
+import {
+  initSidePanelHandler,
+  setConnectionStatus,
+} from "./sidePanelHandler.js";
 
 // Tool handlers
 import { ComputerTool } from "./tools/computer.js";
@@ -77,6 +80,9 @@ cdpManager.initialize().catch((err) => {
 });
 
 // --- Native messaging connection ---
+
+// Forward native host connection status changes to side panel
+nativeMessaging.onConnectionStatusChange(setConnectionStatus);
 
 nativeMessaging.connect();
 

@@ -17,6 +17,10 @@ import type {
 import type { ConnectionStatus } from "../types/messages.js";
 import { updateBadge } from "./badge.js";
 import { messageRouter } from "./messageRouter.js";
+import {
+  recordToolStart,
+  recordToolComplete,
+} from "./sidePanelHandler.js";
 
 /** Native messaging host name — must match the installed manifest JSON filename */
 const NATIVE_HOST_NAME = "com.opencode.chrome_bridge";
@@ -170,17 +174,22 @@ export class NativeMessagingConnection {
   private handleMessage(message: NativeMessage): void {
     switch (message.type) {
       case "tool_request": {
+        const toolName = message.params?.tool ?? message.method;
+        const entryId = recordToolStart(toolName);
+
         messageRouter
           .route({
             method: message.method,
             params: message.params,
           })
           .then((result) => {
+            recordToolComplete(entryId, result.success);
             this.sendToolResponse(result);
           })
           .catch((error) => {
             const errorMsg =
               error instanceof Error ? error.message : String(error);
+            recordToolComplete(entryId, false, errorMsg);
             this.sendToolResponse({
               success: false,
               content: [
