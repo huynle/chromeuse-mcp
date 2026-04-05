@@ -5,4 +5,29 @@
  * in content scripts (e.g., GIF encoding, screenshot compositing).
  */
 
-console.log('[OpenCode] Offscreen document loaded')
+import { handleEncode, type EncodeRequest, type EncodeResponse } from './gifEncoder'
+
+// --- Message Handler ---
+
+chrome.runtime.onMessage.addListener(
+  (
+    message: EncodeRequest,
+    _sender: chrome.runtime.MessageSender,
+    sendResponse: (response: EncodeResponse) => void,
+  ): boolean => {
+    if (message.action !== 'encode') return false
+
+    handleEncode(message)
+      .then(sendResponse)
+      .catch((err) => {
+        sendResponse({
+          success: false,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      })
+
+    return true // Will respond asynchronously
+  },
+)
+
+console.log('[OpenCode] Offscreen document ready (GIF encoder loaded)')
