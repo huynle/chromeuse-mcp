@@ -8,6 +8,8 @@
     "build": "tsx esbuild.config.ts",
     "build:watch": "tsx esbuild.config.ts --watch",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -17,6 +19,7 @@
     "@types/chrome": "^0.0.287",
     "esbuild": "^0.24.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
   }
 }
