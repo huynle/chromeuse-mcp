@@ -25,6 +25,12 @@ import {
 /** Default timeout for tool requests (60 seconds) */
 const DEFAULT_TIMEOUT_MS = 60_000;
 
+interface PendingRequest {
+  readonly resolve: (response: ToolResponse) => void;
+  readonly reject: (error: Error) => void;
+  readonly timer: ReturnType<typeof setTimeout>;
+}
+
 /** Event types emitted by the socket client */
 export interface SocketClientEvents {
   connected: () => void;
@@ -41,9 +47,7 @@ export interface SocketClientEvents {
 export class SocketClient {
   private socket: Socket | null = null;
   private buffer = new Uint8Array(0);
-  private responseResolve: ((response: ToolResponse) => void) | null = null;
-  private responseReject: ((error: Error) => void) | null = null;
-  private responseTimer: ReturnType<typeof setTimeout> | null = null;
+  private pendingRequests = new Map<string, PendingRequest>();
   private _connected = false;
 
   get connected(): boolean {
@@ -138,9 +142,6 @@ export class SocketClient {
   /**
    * Send a tool request to the native host and wait for the response.
    *
-   * Only one request at a time is supported until downstream routing changes
-   * use request IDs for multiple concurrent in-flight calls.
-   *
    * @param tool - Tool name (e.g. "navigate", "computer")
    * @param args - Tool arguments
    * @param timeoutMs - Request timeout in milliseconds (default: 60s)
@@ -155,65 +156,58 @@ export class SocketClient {
       throw new Error("Not connected to native host");
     }
 
-    if (this.responseResolve) {
-      throw new Error(
-        "A request is already pending. Only one request at a time is supported."
-      );
-    }
-
     const requestId = randomUUID();
     const request: ToolRequest = {
       type: "tool_request",
       method: "execute_tool",
-      params: { request_id: requestId, tool, args },
+      params: { request_id: requestId, tool, args } as ToolRequest["params"],
     };
 
     const encoded = encode(request);
-    this.socket.write(encoded);
 
     return new Promise<{ content: readonly ContentBlock[]; isError?: boolean }>(
       (resolve, reject) => {
-        this.responseTimer = setTimeout(() => {
-          this.responseResolve = null;
-          this.responseReject = null;
-          this.responseTimer = null;
+        const timer = setTimeout(() => {
+          this.pendingRequests.delete(requestId);
           reject(new Error(`Tool request timed out after ${timeoutMs}ms: ${tool}`));
         }, timeoutMs);
 
-        this.responseResolve = (response: ToolResponse) => {
-          if (this.responseTimer) {
-            clearTimeout(this.responseTimer);
-            this.responseTimer = null;
-          }
-          this.responseResolve = null;
-          this.responseReject = null;
+        const pending: PendingRequest = {
+          timer,
+          resolve: (response: ToolResponse) => {
+            this.pendingRequests.delete(requestId);
+            clearTimeout(timer);
 
-          if (response.error) {
-            resolve({
-              content: response.error.content,
-              isError: true,
-            });
-          } else if (response.result) {
-            resolve({
-              content: response.result.content,
-            });
-          } else {
-            resolve({
-              content: [{ type: "text", text: "Empty response from extension" }],
-              isError: true,
-            });
-          }
+            if (response.error) {
+              resolve({
+                content: response.error.content,
+                isError: true,
+              });
+            } else if (response.result) {
+              resolve({
+                content: response.result.content,
+              });
+            } else {
+              resolve({
+                content: [{ type: "text", text: "Empty response from extension" }],
+                isError: true,
+              });
+            }
+          },
+          reject: (error: Error) => {
+            this.pendingRequests.delete(requestId);
+            clearTimeout(timer);
+            reject(error);
+          },
         };
 
-        this.responseReject = (error: Error) => {
-          if (this.responseTimer) {
-            clearTimeout(this.responseTimer);
-            this.responseTimer = null;
-          }
-          this.responseResolve = null;
-          this.responseReject = null;
-          reject(error);
-        };
+        this.pendingRequests.set(requestId, pending);
+
+        try {
+          this.socket?.write(encoded);
+        } catch (error) {
+          pending.reject(error instanceof Error ? error : new Error(String(error)));
+        }
       }
     );
   }
@@ -252,7 +246,10 @@ export class SocketClient {
         result = decode(this.buffer);
       } catch (err) {
         // Protocol error — drop the connection
-        this.disconnect();
+        const error = err instanceof Error ? err : new Error(String(err));
+        const socket = this.socket;
+        this.handleDisconnect(error);
+        socket?.destroy();
         return;
       }
 
@@ -272,8 +269,18 @@ export class SocketClient {
 
     const msg = message as Record<string, unknown>;
 
-    if (msg.type === "tool_response" && this.responseResolve) {
-      this.responseResolve(msg as unknown as ToolResponse);
+    if (
+      (msg.type === "tool_response" || "result" in msg || "error" in msg)
+    ) {
+      if (typeof msg.request_id !== "string") return;
+
+      const pending = this.pendingRequests.get(msg.request_id);
+      if (!pending) return;
+
+      pending.resolve({
+        type: "tool_response",
+        ...msg,
+      } as unknown as ToolResponse);
     }
   }
 
@@ -284,14 +291,12 @@ export class SocketClient {
   }
 
   private clearPending(error: Error): void {
-    if (this.responseTimer) {
-      clearTimeout(this.responseTimer);
-      this.responseTimer = null;
-    }
-    if (this.responseReject) {
-      this.responseReject(error);
-      this.responseResolve = null;
-      this.responseReject = null;
+    const pendingRequests = [...this.pendingRequests.values()];
+    this.pendingRequests.clear();
+
+    for (const pending of pendingRequests) {
+      clearTimeout(pending.timer);
+      pending.reject(error);
     }
   }
 }
