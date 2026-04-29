@@ -33,7 +33,7 @@ describe("encodeMessage", () => {
   });
 
   it("handles nested objects and arrays", () => {
-    const data = { type: "tool_request", params: { tool: "navigate" }, list: [1, 2] };
+    const data = { type: "tool_request", params: { request_id: "req-reader-0", tool: "navigate" }, list: [1, 2] };
     const buf = encodeMessage(data);
     const [parsed] = tryExtractMessage(buf);
     expect(parsed).toEqual(data);
@@ -266,7 +266,7 @@ describe("ChromeMessageReader", () => {
     const mockStdin = createMockStdin();
     const reader = new ChromeMessageReader(mockStdin as unknown as NodeJS.ReadableStream);
 
-    const msg = { type: "tool_request", params: { tool: "navigate", args: { url: "https://example.com" } } };
+    const msg = { type: "tool_request", params: { request_id: "req-reader-1", tool: "navigate", args: { url: "https://example.com" } } };
     const encoded = encodeMessage(msg);
 
     // Split the encoded message into multiple chunks
@@ -387,8 +387,8 @@ describe("round-trip: encodeMessage <-> tryExtractMessage", () => {
   it("encode then extract returns the original message", () => {
     const messages = [
       { type: "ping", timestamp: Date.now() },
-      { type: "tool_request", method: "execute_tool", params: { tool: "navigate", args: { url: "https://example.com" } } },
-      { type: "tool_response", result: { content: [{ type: "text", text: "OK" }] } },
+      { type: "tool_request", method: "execute_tool", params: { request_id: "req-reader-2", tool: "navigate", args: { url: "https://example.com" } } },
+      { type: "tool_response", request_id: "req-reader-2", result: { content: [{ type: "text", text: "OK" }] } },
       { type: "pong", timestamp: 0 },
       { type: "status_response", version: "0.1.0" },
     ];

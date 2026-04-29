@@ -105,6 +105,7 @@ describe("SocketClient", () => {
     mockHost = createMockNativeHost();
     mockHost.setResponse({
       type: "tool_response",
+      request_id: "req-response-1",
       result: {
         content: [{ type: "text", text: "Navigated to: https://example.com" }],
       },
@@ -127,6 +128,7 @@ describe("SocketClient", () => {
     const lastReq = mockHost.getLastRequest() as any;
     expect(lastReq.type).toBe("tool_request");
     expect(lastReq.method).toBe("execute_tool");
+    expect(lastReq.params.request_id).toEqual(expect.any(String));
     expect(lastReq.params.tool).toBe("navigate");
     expect(lastReq.params.args).toEqual({
       action: "goto",
@@ -140,6 +142,7 @@ describe("SocketClient", () => {
     mockHost = createMockNativeHost();
     mockHost.setResponse({
       type: "tool_response",
+      request_id: "req-response-2",
       error: {
         content: [{ type: "text", text: "Permission denied" }],
       },

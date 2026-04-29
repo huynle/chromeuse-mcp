@@ -10,6 +10,7 @@
  */
 
 import { connect, type Socket } from "node:net";
+import { randomUUID } from "node:crypto";
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { userInfo, platform } from "node:os";
@@ -137,9 +138,8 @@ export class SocketClient {
   /**
    * Send a tool request to the native host and wait for the response.
    *
-   * Only one request at a time is supported (the native messaging protocol
-   * doesn't use request IDs). Calls are serialized by the MCP server's
-   * sequential tool/call handler.
+   * Only one request at a time is supported until downstream routing changes
+   * use request IDs for multiple concurrent in-flight calls.
    *
    * @param tool - Tool name (e.g. "navigate", "computer")
    * @param args - Tool arguments
@@ -161,10 +161,11 @@ export class SocketClient {
       );
     }
 
+    const requestId = randomUUID();
     const request: ToolRequest = {
       type: "tool_request",
       method: "execute_tool",
-      params: { tool, args },
+      params: { request_id: requestId, tool, args },
     };
 
     const encoded = encode(request);
