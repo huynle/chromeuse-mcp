@@ -373,7 +373,6 @@ const TOOL_SCHEMAS: Tool[] = [
           description: "IDs of tabs to close; takes precedence over tabId",
         },
       },
-      anyOf: [{ required: ["tabId"] }, { required: ["tabIds"] }],
     },
   },
   {

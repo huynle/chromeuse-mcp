@@ -45,6 +45,14 @@ describe("getToolSchemas", () => {
     }
   });
 
+  it("does not use unsupported top-level schema combinators", () => {
+    for (const schema of getToolSchemas()) {
+      expect(schema.inputSchema).not.toHaveProperty("anyOf");
+      expect(schema.inputSchema).not.toHaveProperty("oneOf");
+      expect(schema.inputSchema).not.toHaveProperty("allOf");
+    }
+  });
+
   it("navigate tool requires action", () => {
     const schema = getToolSchemas().find(
       (s) => s.name === TOOL_NAMES.NAVIGATE
@@ -194,10 +202,6 @@ describe("getToolSchemas", () => {
     expect(schema.inputSchema.properties).toMatchObject({
       tabIds: { type: "array", items: { type: "number" } },
     });
-    expect(schema.inputSchema.anyOf).toEqual([
-      { required: ["tabId"] },
-      { required: ["tabIds"] },
-    ]);
   });
 });
 

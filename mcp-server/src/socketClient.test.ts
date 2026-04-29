@@ -1,8 +1,8 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { createServer, type Server as NetServer, type Socket } from "node:net";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { tmpdir, userInfo } from "node:os";
 import { decode, encode, type ToolResponse } from "@opencode-chrome/shared";
 import { SocketClient } from "./socketClient.js";
 
@@ -432,5 +432,36 @@ describe("SocketClient", () => {
     // We can't assert null because the user might have a real native host.
     // Just verify it doesn't throw.
     expect(typeof result === "string" || result === null).toBe(true);
+  });
+
+  it("prefers the newest active socket when multiple native hosts exist", async () => {
+    const olderPid = process.ppid;
+    const newerPid = process.pid;
+
+    vi.resetModules();
+    vi.doMock("node:fs", async () => {
+      const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
+      return {
+        ...actual,
+        readdirSync: vi.fn(() => [`${olderPid}.sock`, `${newerPid}.sock`]),
+        statSync: vi.fn((path: string) => ({
+          mtimeMs: path.endsWith(`${newerPid}.sock`) ? 2_000 : 1_000,
+        })),
+      };
+    });
+
+    const { SocketClient: MockedSocketClient } = await import("./socketClient.js");
+    const client = new MockedSocketClient();
+
+    expect(client.findActiveSocket()).toBe(
+      join(
+        "/tmp",
+        `opencode-browser-bridge-${userInfo().username}`,
+        `${newerPid}.sock`
+      )
+    );
+
+    vi.doUnmock("node:fs");
+    vi.resetModules();
   });
 });

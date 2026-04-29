@@ -73,20 +73,30 @@ export class SocketClient {
 
     try {
       const files = readdirSync(socketDir);
+      const activeSockets: { path: string; mtimeMs: number }[] = [];
+
       for (const file of files) {
         if (!file.endsWith(".sock")) continue;
 
         const pid = parseInt(file.replace(".sock", ""), 10);
         if (Number.isNaN(pid)) continue;
 
+        const socketPath = join(socketDir, file);
+
         // Check if the process is still alive
         try {
           process.kill(pid, 0);
-          return join(socketDir, file);
+          activeSockets.push({
+            path: socketPath,
+            mtimeMs: statSync(socketPath).mtimeMs,
+          });
         } catch {
-          // Process is dead — stale socket, skip it
+          // Process is dead or the socket disappeared — skip it
         }
       }
+
+      activeSockets.sort((a, b) => b.mtimeMs - a.mtimeMs);
+      return activeSockets[0]?.path ?? null;
     } catch {
       // Directory doesn't exist — no native host running
     }
