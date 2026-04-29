@@ -64,12 +64,21 @@ const TOOL_SCHEMAS: Tool[] = [
           ],
           description: "The action to perform",
         },
-        coordinate: {
-          type: "array",
-          items: { type: "number" },
-          minItems: 2,
-          maxItems: 2,
-          description: "[x, y] coordinates in screenshot pixel space",
+        tabId: {
+          type: "number",
+          description: "Target tab ID",
+        },
+        x: {
+          type: "number",
+          description: "X coordinate in screenshot pixel space",
+        },
+        y: {
+          type: "number",
+          description: "Y coordinate in screenshot pixel space",
+        },
+        ref: {
+          type: "string",
+          description: "Element reference from read_page/find for ref-based clicks",
         },
         text: {
           type: "string",
@@ -80,31 +89,33 @@ const TOOL_SCHEMAS: Tool[] = [
           description:
             'Key name or combo like "Enter", "ctrl+a" (for "key" action)',
         },
-        scroll_direction: {
+        direction: {
           type: "string",
           enum: ["up", "down", "left", "right"],
           description: "Scroll direction",
         },
-        scroll_amount: {
+        amount: {
           type: "number",
           description: "Scroll distance in pixels",
         },
-        start_coordinate: {
-          type: "array",
-          items: { type: "number" },
-          minItems: 2,
-          maxItems: 2,
-          description: 'Start coordinate for "drag" action',
+        startX: {
+          type: "number",
+          description: 'Start X coordinate for "drag" action',
         },
-        end_coordinate: {
-          type: "array",
-          items: { type: "number" },
-          minItems: 2,
-          maxItems: 2,
-          description: 'End coordinate for "drag" action',
+        startY: {
+          type: "number",
+          description: 'Start Y coordinate for "drag" action',
+        },
+        endX: {
+          type: "number",
+          description: 'End X coordinate for "drag" action',
+        },
+        endY: {
+          type: "number",
+          description: 'End Y coordinate for "drag" action',
         },
       },
-      required: ["action"],
+      required: ["action", "tabId"],
     },
   },
   {
@@ -114,13 +125,18 @@ const TOOL_SCHEMAS: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
+        tabId: {
+          type: "number",
+          description: "Target tab ID",
+        },
         format: {
           type: "string",
-          enum: ["a11y_tree", "html", "text"],
+          enum: ["accessibility", "html", "text"],
           description:
-            'Output format (default: "a11y_tree"). The accessibility tree includes element references for targeting.',
+            'Output format (default: "accessibility"). The accessibility tree includes element references for targeting.',
         },
       },
+      required: ["tabId"],
     },
   },
   {
@@ -130,13 +146,21 @@ const TOOL_SCHEMAS: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        description: {
+        tabId: {
+          type: "number",
+          description: "Target tab ID",
+        },
+        query: {
           type: "string",
           description:
             'Natural language description of the element (e.g. "the search button", "email input field")',
         },
+        maxResults: {
+          type: "number",
+          description: "Maximum number of matching elements to return (default: 5)",
+        },
       },
-      required: ["description"],
+      required: ["tabId", "query"],
     },
   },
   {
@@ -146,6 +170,10 @@ const TOOL_SCHEMAS: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
+        tabId: {
+          type: "number",
+          description: "Target tab ID",
+        },
         ref: {
           type: "string",
           description:
@@ -156,7 +184,7 @@ const TOOL_SCHEMAS: Tool[] = [
           description: "Value to set on the form element",
         },
       },
-      required: ["ref", "value"],
+      required: ["tabId", "ref", "value"],
     },
   },
   {
@@ -165,7 +193,17 @@ const TOOL_SCHEMAS: Tool[] = [
       "Extract all visible text content from the current page. Useful for reading articles, getting page content without markup.",
     inputSchema: {
       type: "object",
-      properties: {},
+      properties: {
+        tabId: {
+          type: "number",
+          description: "Target tab ID",
+        },
+        maxLength: {
+          type: "number",
+          description: "Maximum characters to return (default: 100000, max: 500000)",
+        },
+      },
+      required: ["tabId"],
     },
   },
   {
@@ -175,12 +213,24 @@ const TOOL_SCHEMAS: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
+        tabId: {
+          type: "number",
+          description: "Target tab ID",
+        },
         code: {
           type: "string",
           description: "JavaScript code to execute in the page context",
         },
+        awaitPromise: {
+          type: "boolean",
+          description: "Whether to await Promise results (default: true)",
+        },
+        timeout: {
+          type: "number",
+          description: "Evaluation timeout in milliseconds (default: 30000)",
+        },
       },
-      required: ["code"],
+      required: ["tabId", "code"],
     },
   },
   {
@@ -189,16 +239,21 @@ const TOOL_SCHEMAS: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        ref: {
-          type: "string",
-          description: "Element reference for the file input",
+        tabId: {
+          type: "number",
+          description: "Target tab ID",
         },
-        filePath: {
+        selector: {
           type: "string",
-          description: "Absolute path to the file to upload",
+          description: "CSS selector for the file input element",
+        },
+        files: {
+          type: "array",
+          items: { type: "string" },
+          description: "Absolute file paths to upload",
         },
       },
-      required: ["ref", "filePath"],
+      required: ["tabId", "selector", "files"],
     },
   },
   {
@@ -271,10 +326,14 @@ const TOOL_SCHEMAS: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
+        tabId: {
+          type: "number",
+          description: "Target tab ID whose window should be resized",
+        },
         width: { type: "number", description: "Window width in pixels" },
         height: { type: "number", description: "Window height in pixels" },
       },
-      required: ["width", "height"],
+      required: ["tabId", "width", "height"],
     },
   },
   {
@@ -308,8 +367,13 @@ const TOOL_SCHEMAS: Tool[] = [
       type: "object",
       properties: {
         tabId: { type: "number", description: "ID of the tab to close" },
+        tabIds: {
+          type: "array",
+          items: { type: "number" },
+          description: "IDs of tabs to close; takes precedence over tabId",
+        },
       },
-      required: ["tabId"],
+      anyOf: [{ required: ["tabId"] }, { required: ["tabIds"] }],
     },
   },
   {
@@ -324,8 +388,16 @@ const TOOL_SCHEMAS: Tool[] = [
           enum: ["start", "screenshot", "stop"],
           description: "Recording action to perform",
         },
+        tabId: {
+          type: "number",
+          description: "Target tab ID for the recording session",
+        },
+        delay: {
+          type: "number",
+          description: "Frame delay in centiseconds for stop action (default: 50)",
+        },
       },
-      required: ["action"],
+      required: ["action", "tabId"],
     },
   },
 ];

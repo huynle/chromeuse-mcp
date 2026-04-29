@@ -29,23 +29,30 @@ The MCP server connects to the native host over a Unix socket at `/tmp/opencode-
 
 ## Tools
 
-| Tool | Description |
-|------|-------------|
-| `computer` | Screenshots, click, double-click, right-click, type, key combos, scroll, drag |
-| `navigate` | Navigate to URL, go back/forward, reload |
-| `read_page` | Page as accessibility tree (with `ref_N` IDs), plain text, or HTML |
-| `find` | Natural language element search returning refs and bounding rects |
-| `form_input` | Set form field values by ref (inputs, selects, checkboxes, contenteditable) |
-| `get_page_text` | Extract all visible text from the page |
-| `javascript_tool` | Execute arbitrary JS in page context via CDP |
-| `file_upload` | Upload a file to a `<input type=file>` element by ref |
-| `read_console_messages` | Read CDP-captured console messages |
-| `read_network_requests` | Read CDP-captured network requests |
-| `resize_window` | Resize the browser window |
-| `tabs_context` | List all open tabs and tab groups |
-| `tabs_create` | Open a new tab |
-| `tabs_close` | Close a tab by ID |
-| `gif_creator` | Record browser actions as an animated GIF (start → screenshot → stop) |
+Use `tabs_context` to discover tab IDs before targeting tab-scoped tools. Most
+page/tab interaction tools require an explicit `tabId` so multiple agents can
+control different tabs intentionally. `navigate` keeps `tabId` optional and
+falls back to the active tab in the current window; `tabs_create` has no
+`tabId` input and uses `active` (default `true`) to decide whether the new tab
+is foregrounded.
+
+| Tool | Targeting | Description |
+|------|-----------|-------------|
+| `computer` | requires `tabId` | Screenshots, click, double-click, right-click, type, key combos, scroll, drag |
+| `navigate` | optional `tabId`; defaults to active tab | Navigate to URL, go back/forward, reload |
+| `read_page` | requires `tabId` | Page as accessibility tree (with `ref_N` IDs), plain text, or HTML |
+| `find` | requires `tabId` | Natural language element search returning refs and bounding rects |
+| `form_input` | requires `tabId` | Set form field values by ref (inputs, selects, checkboxes, contenteditable) |
+| `get_page_text` | requires `tabId` | Extract all visible text from the page |
+| `javascript_tool` | requires `tabId` | Execute arbitrary JS in page context via CDP |
+| `file_upload` | requires `tabId` | Upload files to a `<input type=file>` element by selector |
+| `read_console_messages` | requires `tabId` | Read CDP-captured console messages |
+| `read_network_requests` | requires `tabId` | Read CDP-captured network requests |
+| `resize_window` | requires `tabId` | Resize the window containing the target tab |
+| `tabs_context` | global discovery; no `tabId` | List all open tabs and tab groups |
+| `tabs_create` | creates new tab; no `tabId` input | Open a new tab; `active` controls foregrounding |
+| `tabs_close` | requires `tabId` or `tabIds` | Close one or more tabs by ID |
+| `gif_creator` | requires `tabId` | Record browser actions as an animated GIF (start → screenshot → stop) |
 
 ## Requirements
 

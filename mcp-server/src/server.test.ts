@@ -10,6 +10,18 @@ import { SocketClient } from "./socketClient.js";
 // ---------------------------------------------------------------------------
 
 describe("getToolSchemas", () => {
+  const schemaFor = (name: string) => {
+    const schema = getToolSchemas().find((s) => s.name === name);
+    expect(schema).toBeDefined();
+    return schema!;
+  };
+
+  const expectRequiredProperty = (name: string, property: string) => {
+    const schema = schemaFor(name);
+    expect(schema.inputSchema.properties).toHaveProperty(property);
+    expect(schema.inputSchema.required).toContain(property);
+  };
+
   it("returns exactly 15 tool schemas", () => {
     const schemas = getToolSchemas();
     expect(schemas).toHaveLength(15);
@@ -63,10 +75,129 @@ describe("getToolSchemas", () => {
   });
 
   it("tabs_close requires tabId", () => {
-    const schema = getToolSchemas().find(
-      (s) => s.name === TOOL_NAMES.TABS_CLOSE
-    )!;
-    expect(schema.inputSchema.required).toContain("tabId");
+    const schema = schemaFor(TOOL_NAMES.TABS_CLOSE);
+    expect(schema.inputSchema.properties).toHaveProperty("tabId");
+  });
+
+  it("advertises required tabId for tab-scoped tools", () => {
+    const tabScopedTools = [
+      TOOL_NAMES.COMPUTER,
+      TOOL_NAMES.READ_PAGE,
+      TOOL_NAMES.FIND,
+      TOOL_NAMES.FORM_INPUT,
+      TOOL_NAMES.GET_PAGE_TEXT,
+      TOOL_NAMES.JAVASCRIPT,
+      TOOL_NAMES.FILE_UPLOAD,
+      TOOL_NAMES.READ_CONSOLE,
+      TOOL_NAMES.READ_NETWORK,
+      TOOL_NAMES.RESIZE_WINDOW,
+      TOOL_NAMES.GIF_CREATOR,
+    ];
+
+    for (const toolName of tabScopedTools) {
+      expectRequiredProperty(toolName, "tabId");
+    }
+  });
+
+  it("keeps navigate tabId optional for active-tab fallback", () => {
+    const schema = schemaFor(TOOL_NAMES.NAVIGATE);
+    expect(schema.inputSchema.properties).toHaveProperty("tabId");
+    expect(schema.inputSchema.required).not.toContain("tabId");
+  });
+
+  it("does not add tabId to global tab discovery or tab creation tools", () => {
+    expect(
+      schemaFor(TOOL_NAMES.TABS_CONTEXT).inputSchema.properties
+    ).not.toHaveProperty("tabId");
+    expect(
+      schemaFor(TOOL_NAMES.TABS_CREATE).inputSchema.properties
+    ).not.toHaveProperty("tabId");
+  });
+
+  it("matches read_page handler format names", () => {
+    const schema = schemaFor(TOOL_NAMES.READ_PAGE);
+    expect(schema.inputSchema.properties).toMatchObject({
+      format: { enum: ["accessibility", "html", "text"] },
+    });
+  });
+
+  it("matches find handler argument names", () => {
+    const schema = schemaFor(TOOL_NAMES.FIND);
+    expect(schema.inputSchema.properties).toHaveProperty("query");
+    expect(schema.inputSchema.properties).toHaveProperty("maxResults");
+    expect(schema.inputSchema.properties).not.toHaveProperty("description");
+    expect(schema.inputSchema.required).toEqual(
+      expect.arrayContaining(["tabId", "query"])
+    );
+  });
+
+  it("matches computer handler coordinate and scroll argument names", () => {
+    const schema = schemaFor(TOOL_NAMES.COMPUTER);
+    expect(schema.inputSchema.properties).toEqual(
+      expect.objectContaining({
+        tabId: expect.any(Object),
+        x: expect.any(Object),
+        y: expect.any(Object),
+        ref: expect.any(Object),
+        direction: expect.any(Object),
+        amount: expect.any(Object),
+        startX: expect.any(Object),
+        startY: expect.any(Object),
+        endX: expect.any(Object),
+        endY: expect.any(Object),
+      })
+    );
+    expect(schema.inputSchema.properties).not.toHaveProperty("coordinate");
+    expect(schema.inputSchema.properties).not.toHaveProperty("scroll_direction");
+    expect(schema.inputSchema.properties).not.toHaveProperty("scroll_amount");
+    expect(schema.inputSchema.properties).not.toHaveProperty("start_coordinate");
+    expect(schema.inputSchema.properties).not.toHaveProperty("end_coordinate");
+  });
+
+  it("matches file_upload handler argument names", () => {
+    const schema = schemaFor(TOOL_NAMES.FILE_UPLOAD);
+    expect(schema.inputSchema.properties).toEqual(
+      expect.objectContaining({
+        tabId: expect.any(Object),
+        selector: expect.any(Object),
+        files: expect.objectContaining({
+          type: "array",
+          items: { type: "string" },
+        }),
+      })
+    );
+    expect(schema.inputSchema.properties).not.toHaveProperty("ref");
+    expect(schema.inputSchema.properties).not.toHaveProperty("filePath");
+    expect(schema.inputSchema.required).toEqual(
+      expect.arrayContaining(["tabId", "selector", "files"])
+    );
+  });
+
+  it("advertises optional handler-supported arguments", () => {
+    expect(
+      schemaFor(TOOL_NAMES.GET_PAGE_TEXT).inputSchema.properties
+    ).toHaveProperty("maxLength");
+    expect(schemaFor(TOOL_NAMES.JAVASCRIPT).inputSchema.properties).toEqual(
+      expect.objectContaining({
+        awaitPromise: expect.any(Object),
+        timeout: expect.any(Object),
+      })
+    );
+    expect(
+      schemaFor(TOOL_NAMES.GIF_CREATOR).inputSchema.properties
+    ).toHaveProperty("delay");
+  });
+
+  it("advertises tabs_close tabIds batch close support", () => {
+    const schema = schemaFor(TOOL_NAMES.TABS_CLOSE);
+    expect(schema.inputSchema.properties).toHaveProperty("tabIds");
+    expect(schema.inputSchema.properties).toMatchObject({
+      tabIds: { type: "array", items: { type: "number" } },
+    });
+    expect(schema.inputSchema.anyOf).toEqual([
+      { required: ["tabId"] },
+      { required: ["tabIds"] },
+    ]);
   });
 });
 
