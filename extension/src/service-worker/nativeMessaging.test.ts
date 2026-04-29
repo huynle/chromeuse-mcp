@@ -15,6 +15,7 @@ const mockPort = {
 const chromeStub = {
   runtime: {
     connectNative: vi.fn(() => mockPort),
+    sendMessage: vi.fn(() => Promise.resolve()),
     lastError: null as { message: string } | null,
     getManifest: vi.fn(() => ({ version: "0.1.0" })),
   },
@@ -33,6 +34,7 @@ Object.assign(globalThis, { chrome: chromeStub });
 
 // Now import the module (after chrome global is set)
 const { NativeMessagingConnection } = await import("./nativeMessaging.js");
+const { messageRouter } = await import("./messageRouter.js");
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -157,12 +159,16 @@ describe("NativeMessagingConnection", () => {
     it("sends success response", () => {
       const conn = freshConnection();
       conn.connect();
-      conn.sendToolResponse({
-        success: true,
-        content: [{ type: "text", text: "ok" }],
-      });
+      conn.sendToolResponse(
+        {
+          success: true,
+          content: [{ type: "text", text: "ok" }],
+        },
+        "req-success",
+      );
       expect(mockPort.postMessage).toHaveBeenCalledWith({
         type: "tool_response",
+        request_id: "req-success",
         result: { content: [{ type: "text", text: "ok" }] },
       });
     });
@@ -170,12 +176,16 @@ describe("NativeMessagingConnection", () => {
     it("sends error response", () => {
       const conn = freshConnection();
       conn.connect();
-      conn.sendToolResponse({
-        success: false,
-        content: [{ type: "text", text: "fail" }],
-      });
+      conn.sendToolResponse(
+        {
+          success: false,
+          content: [{ type: "text", text: "fail" }],
+        },
+        "req-error",
+      );
       expect(mockPort.postMessage).toHaveBeenCalledWith({
         type: "tool_response",
+        request_id: "req-error",
         error: { content: [{ type: "text", text: "fail" }] },
       });
     });
@@ -337,6 +347,66 @@ describe("NativeMessagingConnection", () => {
       fireMessage({ type: "mcp_disconnected" });
       // Should still be connected — native host is alive
       expect(conn.status).toBe("connected");
+    });
+
+    it("preserves request_id on successful tool responses", async () => {
+      messageRouter.register("metadata_success", {
+        async execute() {
+          return {
+            success: true,
+            content: [{ type: "text", text: "ok" }],
+          };
+        },
+      });
+
+      const conn = freshConnection();
+      conn.connect();
+      fireMessage({
+        type: "tool_request",
+        method: "execute_tool",
+        params: {
+          tool: "metadata_success",
+          args: {},
+          request_id: "req-success-1",
+        },
+      });
+
+      await vi.waitFor(() => {
+        expect(mockPort.postMessage).toHaveBeenCalledWith({
+          type: "tool_response",
+          request_id: "req-success-1",
+          result: { content: [{ type: "text", text: "ok" }] },
+        });
+      });
+    });
+
+    it("preserves request_id on error tool responses", async () => {
+      const conn = freshConnection();
+      conn.connect();
+      fireMessage({
+        type: "tool_request",
+        method: "execute_tool",
+        params: {
+          tool: "missing_tool",
+          args: {},
+          request_id: "req-error-1",
+        },
+      });
+
+      await vi.waitFor(() => {
+        expect(mockPort.postMessage).toHaveBeenCalledWith({
+          type: "tool_response",
+          request_id: "req-error-1",
+          error: {
+            content: [
+              {
+                type: "text",
+                text: "Unknown tool: missing_tool. Available tools: metadata_success",
+              },
+            ],
+          },
+        });
+      });
     });
   });
 

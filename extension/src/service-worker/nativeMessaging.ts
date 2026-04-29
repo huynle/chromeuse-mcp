@@ -124,15 +124,20 @@ export class NativeMessagingConnection {
   /**
    * Send a tool execution result back to the native host.
    */
-  sendToolResponse(result: ToolResult): void {
+  sendToolResponse(result: ToolResult, requestId?: string): void {
+    const requestMetadata =
+      requestId === undefined ? {} : { request_id: requestId };
+
     if (result.success) {
       this.sendMessage({
         type: "tool_response",
+        ...requestMetadata,
         result: { content: result.content },
       });
     } else {
       this.sendMessage({
         type: "tool_response",
+        ...requestMetadata,
         error: { content: result.content },
       });
     }
@@ -184,21 +189,24 @@ export class NativeMessagingConnection {
           })
           .then((result) => {
             recordToolComplete(entryId, result.success);
-            this.sendToolResponse(result);
+            this.sendToolResponse(result, message.params.request_id);
           })
           .catch((error) => {
             const errorMsg =
               error instanceof Error ? error.message : String(error);
             recordToolComplete(entryId, false, errorMsg);
-            this.sendToolResponse({
-              success: false,
-              content: [
-                {
-                  type: "text",
-                  text: `Internal error: ${errorMsg}`,
-                },
-              ],
-            });
+            this.sendToolResponse(
+              {
+                success: false,
+                content: [
+                  {
+                    type: "text",
+                    text: `Internal error: ${errorMsg}`,
+                  },
+                ],
+              },
+              message.params.request_id,
+            );
           });
         break;
       }

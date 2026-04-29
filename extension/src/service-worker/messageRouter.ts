@@ -14,6 +14,7 @@ import type {
 export interface ToolRequest {
   method: string;
   params: {
+    request_id: string;
     tool: string;
     args: Record<string, unknown>;
     client_id?: string;

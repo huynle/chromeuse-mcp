@@ -37,6 +37,7 @@ export interface ToolRequest {
   readonly type: "tool_request";
   readonly method: "execute_tool";
   readonly params: {
+    readonly request_id: string;
     readonly tool: string;
     readonly args: Record<string, unknown>;
     readonly client_id?: string;
@@ -82,6 +83,7 @@ export type NativeMessage =
 /** Tool execution result (success) */
 export interface ToolResponseSuccess {
   readonly type: "tool_response";
+  readonly request_id: string;
   readonly result: {
     readonly content: readonly ContentBlock[];
   };
@@ -91,6 +93,7 @@ export interface ToolResponseSuccess {
 /** Tool execution result (error) */
 export interface ToolResponseError {
   readonly type: "tool_response";
+  readonly request_id: string;
   readonly result?: undefined;
   readonly error: {
     readonly content: readonly ContentBlock[];

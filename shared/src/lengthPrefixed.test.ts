@@ -33,7 +33,7 @@ describe("lengthPrefixed", () => {
     it("handles nested objects and arrays", () => {
       const msg = {
         type: "tool_request",
-        params: { tool: "navigate", args: { url: "https://example.com" } },
+        params: { request_id: "req-1", tool: "navigate", args: { url: "https://example.com" } },
         list: [1, 2, 3],
       };
       const buf = encode(msg);
@@ -96,8 +96,8 @@ describe("lengthPrefixed", () => {
     it("encode then decode returns the original message", () => {
       const messages = [
         { type: "ping", timestamp: Date.now() },
-        { type: "tool_request", method: "execute_tool", params: { tool: "navigate", args: { url: "https://example.com" } } },
-        { type: "tool_response", result: { content: [{ type: "text", text: "OK" }] } },
+        { type: "tool_request", method: "execute_tool", params: { request_id: "req-2", tool: "navigate", args: { url: "https://example.com" } } },
+        { type: "tool_response", request_id: "req-2", result: { content: [{ type: "text", text: "OK" }] } },
         { type: "pong", timestamp: 0 },
         { type: "status_response", version: "0.1.0" },
       ];

@@ -11,7 +11,7 @@ function makeRequest(
 ): ToolRequest {
   return {
     method: "execute_tool",
-    params: { tool, args, session_scope: sessionScope },
+    params: { request_id: "req-router-test", tool, args, session_scope: sessionScope },
   };
 }
 
