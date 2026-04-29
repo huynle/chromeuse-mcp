@@ -63,6 +63,14 @@ function makeClient(id: number): McpClient {
   }
 }
 
+function getWrittenPayloads(client: McpClient): unknown[] {
+  const written = (client.socket as unknown as { _written: Buffer[] })._written
+  return written.map((buf) => {
+    const payloadLength = buf.readUInt32LE(0)
+    return JSON.parse(buf.subarray(4, 4 + payloadLength).toString('utf-8'))
+  })
+}
+
 function simulateClientConnect(client: McpClient): void {
   capturedOptions!.onClientConnect(client)
 }
@@ -183,37 +191,139 @@ describe('ChromeNativeHost', () => {
   // -------------------------------------------------------------------------
 
   describe('handleMessage - tool_response', () => {
-    it('forwards to all connected MCP clients with type stripped', async () => {
+    it('routes a tool response only to the client that originated the request', async () => {
       const client1 = makeClient(1)
       const client2 = makeClient(2)
       simulateClientConnect(client1)
       simulateClientConnect(client2)
+      sentMessages.length = 0
+
+      simulateClientData(
+        client1,
+        encodeMessage({
+          method: 'execute_tool',
+          params: { request_id: 'req-1', tool: 'navigate' },
+        }),
+      )
+
+      expect(sentMessages[0]).toMatchObject({
+        type: 'tool_request',
+        method: 'execute_tool',
+        params: { request_id: 'req-1', tool: 'navigate' },
+      })
 
       const toolResponse = {
         type: 'tool_response',
+        request_id: 'req-1',
         result: { content: [{ type: 'text', text: 'OK' }] },
       }
       await host.handleMessage(JSON.stringify(toolResponse))
 
-      // Both clients should receive the data (type stripped, length-prefixed)
-      const written1 = (client1.socket as unknown as { _written: Buffer[] })._written
-      const written2 = (client2.socket as unknown as { _written: Buffer[] })._written
-      expect(written1.length).toBe(1)
-      expect(written2.length).toBe(1)
-
-      // Decode the written data - should be the message without 'type' field
-      const buf1 = written1[0]
-      const payloadLength = buf1.readUInt32LE(0)
-      const payload = JSON.parse(buf1.subarray(4, 4 + payloadLength).toString('utf-8'))
-      expect(payload).toEqual({ result: { content: [{ type: 'text', text: 'OK' }] } })
-      expect(payload.type).toBeUndefined()
+      expect(getWrittenPayloads(client1)).toEqual([
+        {
+          request_id: 'req-1',
+          result: { content: [{ type: 'text', text: 'OK' }] },
+        },
+      ])
+      expect(getWrittenPayloads(client2)).toEqual([])
     })
 
-    it('does nothing when no clients connected', async () => {
-      const toolResponse = { type: 'tool_response', result: { content: [] } }
-      // Should not throw
-      await host.handleMessage(JSON.stringify(toolResponse))
-      expect(sentMessages).toHaveLength(0)
+    it('routes out-of-order responses to their matching clients and removes pending entries', async () => {
+      const client1 = makeClient(1)
+      const client2 = makeClient(2)
+      simulateClientConnect(client1)
+      simulateClientConnect(client2)
+      sentMessages.length = 0
+
+      simulateClientData(
+        client1,
+        encodeMessage({ method: 'execute_tool', params: { request_id: 'req-1', tool: 'click' } }),
+      )
+      simulateClientData(
+        client2,
+        encodeMessage({ method: 'execute_tool', params: { request_id: 'req-2', tool: 'type' } }),
+      )
+
+      await host.handleMessage(
+        JSON.stringify({
+          type: 'tool_response',
+          request_id: 'req-2',
+          result: { content: [{ type: 'text', text: 'second' }] },
+        }),
+      )
+      await host.handleMessage(
+        JSON.stringify({
+          type: 'tool_response',
+          request_id: 'req-1',
+          result: { content: [{ type: 'text', text: 'first' }] },
+        }),
+      )
+
+      expect(getWrittenPayloads(client1)).toEqual([
+        {
+          request_id: 'req-1',
+          result: { content: [{ type: 'text', text: 'first' }] },
+        },
+      ])
+      expect(getWrittenPayloads(client2)).toEqual([
+        {
+          request_id: 'req-2',
+          result: { content: [{ type: 'text', text: 'second' }] },
+        },
+      ])
+
+      await host.handleMessage(
+        JSON.stringify({
+          type: 'tool_response',
+          request_id: 'req-1',
+          result: { content: [{ type: 'text', text: 'duplicate' }] },
+        }),
+      )
+
+      expect(getWrittenPayloads(client1)).toHaveLength(1)
+    })
+
+    it('drops tool responses with missing or unknown request IDs', async () => {
+      const client = makeClient(1)
+      simulateClientConnect(client)
+
+      await host.handleMessage(
+        JSON.stringify({ type: 'tool_response', result: { content: [] } }),
+      )
+      await host.handleMessage(
+        JSON.stringify({
+          type: 'tool_response',
+          request_id: 'missing-request',
+          result: { content: [] },
+        }),
+      )
+
+      expect(getWrittenPayloads(client)).toEqual([])
+    })
+
+    it('cleans pending requests when their client disconnects', async () => {
+      const client1 = makeClient(1)
+      const client2 = makeClient(2)
+      simulateClientConnect(client1)
+      simulateClientConnect(client2)
+      sentMessages.length = 0
+
+      simulateClientData(
+        client1,
+        encodeMessage({ method: 'execute_tool', params: { request_id: 'req-1', tool: 'click' } }),
+      )
+      simulateClientDisconnect(client1)
+
+      await host.handleMessage(
+        JSON.stringify({
+          type: 'tool_response',
+          request_id: 'req-1',
+          result: { content: [{ type: 'text', text: 'late' }] },
+        }),
+      )
+
+      expect(getWrittenPayloads(client1)).toEqual([])
+      expect(getWrittenPayloads(client2)).toEqual([])
     })
   })
 
@@ -223,21 +333,21 @@ describe('ChromeNativeHost', () => {
 
   describe('handleMessage - notification', () => {
     it('forwards to all connected MCP clients with type stripped', async () => {
-      const client = makeClient(1)
-      simulateClientConnect(client)
+      const client1 = makeClient(1)
+      const client2 = makeClient(2)
+      simulateClientConnect(client1)
+      simulateClientConnect(client2)
 
       await host.handleMessage(
         JSON.stringify({ type: 'notification', event: 'tab_updated', data: { tabId: 42 } }),
       )
 
-      const written = (client.socket as unknown as { _written: Buffer[] })._written
-      expect(written.length).toBe(1)
-
-      const buf = written[0]
-      const payloadLength = buf.readUInt32LE(0)
-      const payload = JSON.parse(buf.subarray(4, 4 + payloadLength).toString('utf-8'))
-      expect(payload).toEqual({ event: 'tab_updated', data: { tabId: 42 } })
-      expect(payload.type).toBeUndefined()
+      expect(getWrittenPayloads(client1)).toEqual([
+        { event: 'tab_updated', data: { tabId: 42 } },
+      ])
+      expect(getWrittenPayloads(client2)).toEqual([
+        { event: 'tab_updated', data: { tabId: 42 } },
+      ])
     })
   })
 
@@ -343,7 +453,7 @@ describe('ChromeNativeHost', () => {
       simulateClientConnect(client)
       sentMessages.length = 0
 
-      const request = { method: 'execute_tool', params: { tool: 'navigate' } }
+      const request = { method: 'execute_tool', params: { request_id: 'req-native-2', tool: 'navigate' } }
       const encoded = encodeMessage(request)
 
       simulateClientData(client, encoded)
@@ -352,7 +462,7 @@ describe('ChromeNativeHost', () => {
       expect(sentMessages[0]).toMatchObject({
         type: 'tool_request',
         method: 'execute_tool',
-        params: { tool: 'navigate' },
+        params: { request_id: 'req-native-2', tool: 'navigate' },
       })
     })
 
@@ -361,7 +471,7 @@ describe('ChromeNativeHost', () => {
       simulateClientConnect(client)
       sentMessages.length = 0
 
-      const request = { method: 'execute_tool', params: { tool: 'screenshot' } }
+      const request = { method: 'execute_tool', params: { request_id: 'req-native-3', tool: 'screenshot' } }
       const encoded = encodeMessage(request)
 
       // Split into two chunks
@@ -386,15 +496,15 @@ describe('ChromeNativeHost', () => {
       simulateClientConnect(client)
       sentMessages.length = 0
 
-      const req1 = { method: 'execute_tool', params: { tool: 'click' } }
-      const req2 = { method: 'execute_tool', params: { tool: 'type' } }
+      const req1 = { method: 'execute_tool', params: { request_id: 'req-native-4', tool: 'click' } }
+      const req2 = { method: 'execute_tool', params: { request_id: 'req-native-5', tool: 'type' } }
 
       const combined = Buffer.concat([encodeMessage(req1), encodeMessage(req2)])
       simulateClientData(client, combined)
 
       expect(sentMessages).toHaveLength(2)
-      expect(sentMessages[0]).toMatchObject({ type: 'tool_request', method: 'execute_tool', params: { tool: 'click' } })
-      expect(sentMessages[1]).toMatchObject({ type: 'tool_request', method: 'execute_tool', params: { tool: 'type' } })
+      expect(sentMessages[0]).toMatchObject({ type: 'tool_request', method: 'execute_tool', params: { request_id: 'req-native-4', tool: 'click' } })
+      expect(sentMessages[1]).toMatchObject({ type: 'tool_request', method: 'execute_tool', params: { request_id: 'req-native-5', tool: 'type' } })
     })
 
     it('destroys client socket on protocol error (oversized message)', () => {

@@ -7,7 +7,8 @@
  * Message routing:
  *   - Chrome stdin -> handleMessage() -> dispatch by type
  *   - Socket client data -> handleClientData() -> tool_request to Chrome stdout
- *   - tool_response/notification from Chrome -> forward to all socket clients
+ *   - tool_response from Chrome -> route to originating socket client by request_id
+ *   - notification from Chrome -> forward to all socket clients
  *   - ping -> pong, get_status -> status_response
  */
 
@@ -37,7 +38,9 @@ const messageSchema = z
 
 type ToolRequest = {
   method: string
-  params?: unknown
+  params?: {
+    request_id?: unknown
+  }
 }
 
 export class ChromeNativeHost {
@@ -46,6 +49,7 @@ export class ChromeNativeHost {
   private stopServer: (() => Promise<void>) | null = null
   private running = false
   private socketPath: string | null = null
+  private pendingRequests = new Map<string, number>()
 
   async start(): Promise<void> {
     if (this.running) {
@@ -81,6 +85,7 @@ export class ChromeNativeHost {
       client.socket.destroy()
     }
     this.mcpClients.clear()
+    this.pendingRequests.clear()
 
     // Close server and clean up socket
     if (this.stopServer) {
@@ -142,22 +147,35 @@ export class ChromeNativeHost {
         break
 
       case 'tool_response': {
-        if (this.mcpClients.size > 0) {
+        const requestId = message.request_id
+        if (typeof requestId !== 'string') {
+          log('Dropping tool response without request_id')
+          break
+        }
+
+        const clientId = this.pendingRequests.get(requestId)
+        if (clientId === undefined) {
+          log(`Dropping tool response for unknown request_id: ${requestId}`)
+          break
+        }
+
+        this.pendingRequests.delete(requestId)
+
+        const client = this.mcpClients.get(clientId)
+        if (!client) {
           log(
-            `Forwarding tool response to ${this.mcpClients.size} MCP clients`,
+            `Dropping tool response for disconnected MCP client ${clientId}: ${requestId}`,
           )
+          break
+        }
 
-          // Extract the data portion (everything except 'type')
-          const { type: _, ...data } = message
-          const encoded = encodeMessage(data)
+        const { type: _, ...data } = message
+        const encoded = encodeMessage(data)
 
-          for (const [id, client] of this.mcpClients) {
-            try {
-              client.socket.write(encoded)
-            } catch (e) {
-              log(`Failed to send to MCP client ${id}:`, (e as Error).message)
-            }
-          }
+        try {
+          client.socket.write(encoded)
+        } catch (e) {
+          log(`Failed to send to MCP client ${clientId}:`, (e as Error).message)
         }
         break
       }
@@ -224,6 +242,11 @@ export class ChromeNativeHost {
           `Forwarding tool request from MCP client ${client.id}: ${request.method}`,
         )
 
+        const requestId = request.params?.request_id
+        if (typeof requestId === 'string') {
+          this.pendingRequests.set(requestId, client.id)
+        }
+
         // Forward to Chrome
         sendChromeMessage({
           type: 'tool_request',
@@ -252,6 +275,11 @@ export class ChromeNativeHost {
       return // Already removed (e.g. during stop())
     }
     this.mcpClients.delete(client.id)
+    for (const [requestId, clientId] of this.pendingRequests) {
+      if (clientId === client.id) {
+        this.pendingRequests.delete(requestId)
+      }
+    }
     log(
       `MCP client ${client.id} disconnected. Remaining clients: ${this.mcpClients.size}`,
     )
