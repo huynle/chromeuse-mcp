@@ -42,7 +42,7 @@ const DEFAULT_DELAY_CS = 50; // 500ms between frames
 const MAX_FRAMES = 100;
 
 /** Offscreen document URL (relative to extension root) */
-const OFFSCREEN_URL = "src/offscreen/offscreen.html";
+const OFFSCREEN_URL = "dist/offscreen/offscreen.html";
 
 /** Offscreen document creation reason */
 const OFFSCREEN_REASON = "WORKERS" as chrome.offscreen.Reason;

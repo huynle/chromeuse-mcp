@@ -4,7 +4,7 @@
 # Builds packages in topological order:
 #   1. shared (types/utils depended on by everything)
 #   2. native-host (tsc, depends on shared)
-#   3. extension (esbuild, depends on shared)
+#   3. extension (typecheck + esbuild, depends on shared)
 #   4. mcp-server (tsc, depends on shared)
 #
 # Usage:
@@ -30,7 +30,7 @@ echo ""
 
 # ── 3. Chrome Extension ────────────────────────────────────────────────────
 echo "--- Building extension ---"
-(cd "$PROJECT_ROOT/extension" && npm run build)
+(cd "$PROJECT_ROOT/extension" && npm run typecheck && npm run build)
 echo ""
 
 # ── 4. MCP Server ──────────────────────────────────────────────────────────
