@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Chrome extension (MV3) for ChromeUse MCP browser automation",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "tsx esbuild.config.ts",
@@ -17,7 +18,7 @@
   },
   "devDependencies": {
     "@types/chrome": "^0.0.287",
-    "esbuild": "^0.24.0",
+    "esbuild": "^0.28.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
