@@ -1,6 +1,6 @@
 /**
  * tabs_create tool - opens a new browser tab and adds it to the
- * session's "OpenCode" tab group.
+ * session's "ChromeUse" tab group.
  *
  * Args:
  *   url (string, optional): URL to open. Defaults to chrome://newtab.
@@ -42,7 +42,7 @@ export class TabsCreateTool implements ToolHandler {
         };
       }
 
-      // Add to OpenCode tab group
+      // Add to ChromeUse tab group
       let groupId: number | undefined;
       try {
         groupId = await tabGroupManager.addTabToGroup(

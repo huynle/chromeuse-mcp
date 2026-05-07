@@ -1,5 +1,5 @@
 #!/bin/sh
-# OpenCode Chrome Extension - Build All Packages
+# ChromeUse MCP - Build All Packages
 #
 # Builds packages in topological order:
 #   1. shared (types/utils depended on by everything)
@@ -15,7 +15,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-echo "=== Building OpenCode Chrome Extension ==="
+echo "=== Building ChromeUse MCP ==="
 echo ""
 
 # ── 1. Shared types/utilities ───────────────────────────────────────────────

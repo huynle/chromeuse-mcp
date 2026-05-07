@@ -1,12 +1,12 @@
 {
-  "name": "@opencode-chrome/native-host",
+  "name": "@chromeuse/native-host",
   "version": "0.1.0",
   "private": true,
   "description": "Native messaging host bridging Chrome extension to MCP server",
   "type": "module",
   "bin": {
-    "opencode-native-host": "./dist/index.js",
-    "opencode-native-host-install": "./dist/install.js"
+    "chromeuse-native-host": "./dist/index.js",
+    "chromeuse-native-host-install": "./dist/install.js"
   },
   "scripts": {
     "build": "tsc",
@@ -15,7 +15,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@opencode-chrome/shared": "*"
+    "@chromeuse/shared": "*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

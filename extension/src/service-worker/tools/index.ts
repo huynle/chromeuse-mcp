@@ -5,7 +5,7 @@
  * Called once during service worker initialization.
  */
 
-import { TOOL_NAMES } from "@opencode-chrome/shared";
+import { TOOL_NAMES } from "@chromeuse/shared";
 import type { MessageRouter } from "../messageRouter.js";
 
 // Tool handlers

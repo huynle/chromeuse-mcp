@@ -260,7 +260,7 @@ describe('getSocketDir / getSocketPath', () => {
   it('getSocketDir returns a path with the expected prefix', async () => {
     const { getSocketDir } = await import('./socketServer.js')
     const dir = getSocketDir()
-    expect(dir).toMatch(/^\/tmp\/opencode-browser-bridge-/)
+    expect(dir).toMatch(/^\/tmp\/chromeuse-browser-bridge-/)
   })
 
   it('getSocketPath returns a .sock path with current PID', async () => {

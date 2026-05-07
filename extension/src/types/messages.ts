@@ -2,12 +2,12 @@
  * Extension-local type definitions for the Chrome extension.
  *
  * Wire protocol types (ContentBlock, NativeMessage, ExtensionMessage, etc.)
- * live in @opencode-chrome/shared. This file defines types that are internal
+ * live in @chromeuse/shared. This file defines types that are internal
  * to the extension: tool handler interface, connection status, badge config,
  * side panel state, and tool execution tracking.
  */
 
-import type { ContentBlock, ToolResult, ToolContext } from "@opencode-chrome/shared";
+import type { ContentBlock, ToolResult, ToolContext } from "@chromeuse/shared";
 
 // Re-export shared types used extensively within the extension
 export type { ContentBlock, ToolResult, ToolContext };

@@ -9,7 +9,7 @@
  *   - tryExtractMessage: extracts one message from an accumulated Buffer
  *   - MessageProtocolError: error type for protocol violations
  *
- * The shared package (@opencode-chrome/shared) provides platform-agnostic
+ * The shared package (@chromeuse/shared) provides platform-agnostic
  * Uint8Array-based encode/decode. This module provides Buffer-based
  * equivalents needed for Node.js stdin/stdout and socket I/O.
  */

@@ -30,4 +30,4 @@ chrome.runtime.onMessage.addListener(
   },
 )
 
-console.log('[OpenCode] Offscreen document ready (GIF encoder loaded)')
+console.log('[ChromeUse] Offscreen document ready (GIF encoder loaded)')

@@ -1,8 +1,8 @@
 {
-  "name": "@opencode-chrome/shared",
+  "name": "@chromeuse/shared",
   "version": "0.1.0",
   "private": true,
-  "description": "Shared types and utilities for OpenCode Chrome extension",
+  "description": "Shared types and utilities for ChromeUse MCP",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

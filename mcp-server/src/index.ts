@@ -2,7 +2,7 @@
 /**
  * MCP Server entry point.
  *
- * Starts the MCP server with a stdio transport, connecting OpenCode
+ * Starts the ChromeUse MCP server with a stdio transport, connecting an MCP client
  * to the Chrome extension via the native messaging host socket.
  *
  * Usage:
@@ -22,11 +22,11 @@ async function main(): Promise<void> {
   await server.connect(transport);
 
   // Log to stderr (stdout is reserved for MCP protocol)
-  process.stderr.write("opencode-chrome MCP server started (stdio)\n");
+  process.stderr.write("ChromeUse MCP server started (stdio)\n");
 
   // Handle graceful shutdown
   const shutdown = async () => {
-    process.stderr.write("opencode-chrome MCP server shutting down\n");
+    process.stderr.write("ChromeUse MCP server shutting down\n");
     await server.close();
     process.exit(0);
   };

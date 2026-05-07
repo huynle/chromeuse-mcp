@@ -1,5 +1,5 @@
 /**
- * MCP Server that exposes Chrome browser tools to OpenCode.
+ * MCP Server that exposes Chrome browser tools for ChromeUse MCP.
  *
  * Registers 15 tool schemas via the MCP protocol and forwards
  * tool calls to the Chrome extension through the native host socket.
@@ -11,7 +11,7 @@ import {
   ListToolsRequestSchema,
   type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
-import { TOOL_NAMES } from "@opencode-chrome/shared";
+import { TOOL_NAMES } from "@chromeuse/shared";
 import { SocketClient } from "./socketClient.js";
 
 // ---------------------------------------------------------------------------
@@ -418,7 +418,7 @@ export async function createMcpServer(
   socketClient?: SocketClient
 ): Promise<Server> {
   const server = new Server(
-    { name: "opencode-chrome", version: "0.1.0" },
+    { name: "chromeuse-mcp", version: "0.1.0" },
     { capabilities: { tools: {} } }
   );
 

@@ -358,7 +358,7 @@ export class FindTool implements ToolHandler {
       const [result] = await chrome.scripting.executeScript({
         target: { tabId },
         func: () => {
-          const REF_PROP = "__opencode_ref";
+          const REF_PROP = "__chromeuse_ref";
 
           interface TreeNode {
             role: string;

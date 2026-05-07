@@ -1,5 +1,5 @@
 #!/bin/sh
-# OpenCode Chrome Extension - Full Setup
+# ChromeUse MCP - Full Setup
 #
 # Performs a complete installation:
 #   1. Install npm dependencies for all workspaces
@@ -11,7 +11,7 @@
 #   ./scripts/install.sh [--extension-id=<id>] ...
 #
 # Environment variables:
-#   OPENCODE_EXTENSION_IDS  Comma-separated list of Chrome extension IDs
+#   CHROMEUSE_EXTENSION_IDS  Comma-separated list of Chrome extension IDs
 #
 # Examples:
 #   ./scripts/install.sh
@@ -22,7 +22,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-echo "=== OpenCode Chrome Extension - Full Setup ==="
+echo "=== ChromeUse MCP - Full Setup ==="
 echo ""
 
 # ── 1. Install dependencies ────────────────────────────────────────────────

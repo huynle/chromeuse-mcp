@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { createMcpServer, getToolSchemas } from "./server.js";
-import { TOOL_NAMES, ALL_TOOL_NAMES } from "@opencode-chrome/shared";
+import { TOOL_NAMES, ALL_TOOL_NAMES } from "@chromeuse/shared";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { SocketClient } from "./socketClient.js";

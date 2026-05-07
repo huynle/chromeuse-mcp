@@ -80,7 +80,7 @@ describe("NativeMessagingConnection", () => {
       const conn = freshConnection();
       conn.connect();
       expect(chromeStub.runtime.connectNative).toHaveBeenCalledWith(
-        "com.opencode.chrome_bridge",
+        "com.chromeuse.mcp_bridge",
       );
     });
 

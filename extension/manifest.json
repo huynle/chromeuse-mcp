@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "OpenCode Browser",
+  "name": "ChromeUse MCP",
   "version": "0.1.0",
-  "description": "Browser automation tools for OpenCode",
+  "description": "Browser automation tools for ChromeUse MCP",
   "permissions": [
     "activeTab",
     "scripting",
@@ -30,7 +30,7 @@
       "48": "assets/icon-48.png",
       "128": "assets/icon-128.png"
     },
-    "default_title": "OpenCode Browser"
+    "default_title": "ChromeUse MCP"
   },
   "content_scripts": [
     {

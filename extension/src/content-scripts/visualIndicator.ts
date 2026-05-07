@@ -24,10 +24,10 @@ let styleElement: HTMLStyleElement | null = null;
 
 // --- Unique IDs to avoid CSS conflicts ---
 
-const OVERLAY_ID = '__opencode_visual_indicator_overlay__';
-const STOP_BUTTON_ID = '__opencode_visual_indicator_stop__';
-const STYLE_ID = '__opencode_visual_indicator_style__';
-const ANIMATION_NAME = '__opencode_pulse__';
+const OVERLAY_ID = '__chromeuse_visual_indicator_overlay__';
+const STOP_BUTTON_ID = '__chromeuse_visual_indicator_stop__';
+const STYLE_ID = '__chromeuse_visual_indicator_style__';
+const ANIMATION_NAME = '__chromeuse_pulse__';
 
 // --- Show / Hide ---
 

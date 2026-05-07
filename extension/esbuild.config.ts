@@ -1,5 +1,5 @@
 /**
- * esbuild configuration for the OpenCode Chrome Extension.
+ * esbuild configuration for ChromeUse MCP.
  *
  * Bundles four entry points for Chrome MV3:
  *   1. Service Worker (background script) — ESM, no splitting

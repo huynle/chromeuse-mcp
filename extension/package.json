@@ -1,8 +1,8 @@
 {
-  "name": "@opencode-chrome/extension",
+  "name": "@chromeuse/extension",
   "version": "0.1.0",
   "private": true,
-  "description": "Chrome extension (MV3) for OpenCode browser automation",
+  "description": "Chrome extension (MV3) for ChromeUse MCP browser automation",
   "type": "module",
   "scripts": {
     "build": "tsx esbuild.config.ts",
@@ -13,7 +13,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@opencode-chrome/shared": "*"
+    "@chromeuse/shared": "*"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.287",

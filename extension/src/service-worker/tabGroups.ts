@@ -1,5 +1,5 @@
 /**
- * TabGroupManager - manages "OpenCode" tab groups with rotating colors.
+ * TabGroupManager - manages "ChromeUse" tab groups with rotating colors.
  *
  * Each session gets its own tab group. Colors rotate through Chrome's
  * available tab group colors so concurrent sessions are visually distinct.
@@ -25,7 +25,7 @@ export class TabGroupManager {
   private colorIndex = 0;
 
   /**
-   * Add a tab to the OpenCode group for the given session.
+   * Add a tab to the ChromeUse group for the given session.
    * Creates the group if it doesn't exist yet.
    *
    * @param tabId - The Chrome tab ID to add
@@ -58,7 +58,7 @@ export class TabGroupManager {
     this.colorIndex++;
 
     await chrome.tabGroups.update(groupId, {
-      title: 'OpenCode',
+      title: 'ChromeUse',
       color,
       collapsed: false,
     });

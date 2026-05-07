@@ -1,8 +1,8 @@
 {
-  "name": "opencode-chrome",
+  "name": "chromeuse-mcp",
   "version": "0.1.0",
   "private": true,
-  "description": "Chrome extension for OpenCode browser automation",
+  "description": "ChromeUse MCP browser automation tools",
   "workspaces": [
     "shared",
     "extension",

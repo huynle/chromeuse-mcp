@@ -18,12 +18,12 @@ import {
 // ---------------------------------------------------------------------------
 
 describe('constants', () => {
-  it('uses com.opencode.chrome_bridge as native host name', () => {
-    expect(NATIVE_HOST_NAME).toBe('com.opencode.chrome_bridge')
+  it('uses com.chromeuse.mcp_bridge as native host name', () => {
+    expect(NATIVE_HOST_NAME).toBe('com.chromeuse.mcp_bridge')
   })
 
   it('manifest filename matches native host name', () => {
-    expect(MANIFEST_FILENAME).toBe('com.opencode.chrome_bridge.json')
+    expect(MANIFEST_FILENAME).toBe('com.chromeuse.mcp_bridge.json')
   })
 })
 
@@ -112,10 +112,10 @@ describe('getAllNativeMessagingDirs', () => {
 describe('buildManifest', () => {
   it('builds manifest with correct name and type', () => {
     const manifest = buildManifest({ wrapperPath: '/usr/local/bin/host' })
-    expect(manifest.name).toBe('com.opencode.chrome_bridge')
+    expect(manifest.name).toBe('com.chromeuse.mcp_bridge')
     expect(manifest.type).toBe('stdio')
     expect(manifest.path).toBe('/usr/local/bin/host')
-    expect(manifest.description).toBe('OpenCode Browser Extension Native Host')
+    expect(manifest.description).toBe('ChromeUse MCP Native Host')
   })
 
   it('formats allowed_origins from extension IDs', () => {
@@ -218,7 +218,7 @@ describe('installManifests', () => {
     // Verify one manifest's content
     const chromeManifest = result.installed.find(i => i.browser === 'chrome')!
     const content = JSON.parse(await readFile(chromeManifest.path, 'utf-8'))
-    expect(content.name).toBe('com.opencode.chrome_bridge')
+    expect(content.name).toBe('com.chromeuse.mcp_bridge')
     expect(content.type).toBe('stdio')
     expect(content.allowed_origins).toEqual(['chrome-extension://test-ext-id/'])
   })

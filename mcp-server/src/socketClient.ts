@@ -2,11 +2,11 @@
  * Socket client that connects to the native messaging host via Unix domain socket.
  *
  * The native host creates a socket at:
- *   /tmp/opencode-browser-bridge-{username}/{pid}.sock (Unix)
- *   \\.\pipe\opencode-browser-bridge-{username}-{pid} (Windows)
+ *   /tmp/chromeuse-browser-bridge-{username}/{pid}.sock (Unix)
+ *   \\.\pipe\chromeuse-browser-bridge-{username}-{pid} (Windows)
  *
  * Communication uses 4-byte LE length-prefixed JSON, matching the
- * shared `encode`/`decode` from @opencode-chrome/shared.
+ * shared `encode`/`decode` from @chromeuse/shared.
  */
 
 import { connect, type Socket } from "node:net";
@@ -20,7 +20,7 @@ import {
   type ToolRequest,
   type ToolResponse,
   type ContentBlock,
-} from "@opencode-chrome/shared";
+} from "@chromeuse/shared";
 
 /** Default timeout for tool requests (60 seconds) */
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -66,10 +66,10 @@ export class SocketClient {
     if (platform() === "win32") {
       // Windows named pipes are discovered differently; for now we
       // return a conventional path and let connect() fail if absent.
-      return `\\\\.\\pipe\\opencode-browser-bridge-${username}`;
+      return `\\\\.\\pipe\\chromeuse-browser-bridge-${username}`;
     }
 
-    const socketDir = join("/tmp", `opencode-browser-bridge-${username}`);
+    const socketDir = join("/tmp", `chromeuse-browser-bridge-${username}`);
 
     try {
       const files = readdirSync(socketDir);

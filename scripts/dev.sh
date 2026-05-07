@@ -1,5 +1,5 @@
 #!/bin/sh
-# OpenCode Chrome Extension - Development Mode
+# ChromeUse MCP - Development Mode
 #
 # Builds shared and native-host once, then runs the extension esbuild
 # in watch mode for rapid development.
@@ -17,7 +17,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-echo "=== OpenCode Chrome Extension - Dev Mode ==="
+echo "=== ChromeUse MCP - Dev Mode ==="
 echo ""
 
 # Ensure dependencies are installed

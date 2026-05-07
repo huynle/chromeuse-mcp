@@ -13,7 +13,7 @@ import type {
   NativeMessage,
   ExtensionMessage,
   ToolResult,
-} from "@opencode-chrome/shared";
+} from "@chromeuse/shared";
 import type { ConnectionStatus } from "../types/messages.js";
 import { updateBadge } from "./badge.js";
 import { messageRouter } from "./messageRouter.js";
@@ -23,7 +23,7 @@ import {
 } from "./sidePanelHandler.js";
 
 /** Native messaging host name — must match the installed manifest JSON filename */
-const NATIVE_HOST_NAME = "com.opencode.chrome_bridge";
+const NATIVE_HOST_NAME = "com.chromeuse.mcp_bridge";
 
 /** Maximum reconnection attempts before giving up */
 const MAX_RECONNECT_ATTEMPTS = 10;

@@ -1,5 +1,5 @@
 /**
- * Tool name constants and types for the OpenCode Chrome Extension.
+ * Tool name constants and types for ChromeUse MCP.
  *
  * These must match the tool schemas registered in the MCP server
  * and the tool handlers in the Chrome extension service worker.

@@ -1,5 +1,5 @@
 #!/bin/sh
-# OpenCode Chrome Extension - Native Host Installer
+# ChromeUse MCP - Native Host Installer
 #
 # Installs native messaging host manifests for all Chromium browsers
 # on macOS and Linux.
@@ -8,11 +8,11 @@
 #   ./scripts/install-native-host.sh [--extension-id=<id>] ...
 #
 # Environment variables:
-#   OPENCODE_EXTENSION_IDS  Comma-separated list of Chrome extension IDs
+#   CHROMEUSE_EXTENSION_IDS  Comma-separated list of Chrome extension IDs
 #
 # Examples:
 #   ./scripts/install-native-host.sh --extension-id=abcdefghijklmnop
-#   OPENCODE_EXTENSION_IDS=id1,id2 ./scripts/install-native-host.sh
+#   CHROMEUSE_EXTENSION_IDS=id1,id2 ./scripts/install-native-host.sh
 
 set -e
 

@@ -3,7 +3,7 @@ import { createServer, type Server as NetServer, type Socket } from "node:net";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir, userInfo } from "node:os";
-import { decode, encode, type ToolResponse } from "@opencode-chrome/shared";
+import { decode, encode, type ToolResponse } from "@chromeuse/shared";
 import { SocketClient } from "./socketClient.js";
 
 // ---------------------------------------------------------------------------
@@ -456,7 +456,7 @@ describe("SocketClient", () => {
     expect(client.findActiveSocket()).toBe(
       join(
         "/tmp",
-        `opencode-browser-bridge-${userInfo().username}`,
+        `chromeuse-browser-bridge-${userInfo().username}`,
         `${newerPid}.sock`
       )
     );

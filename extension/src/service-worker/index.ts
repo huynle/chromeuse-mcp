@@ -1,5 +1,5 @@
 /**
- * Service Worker entry point for the OpenCode Browser extension.
+ * Service Worker entry point for the ChromeUse MCP extension.
  *
  * Responsibilities:
  * 1. Initialize native messaging connection to the host process
@@ -27,7 +27,7 @@ import { registerTools } from "./tools/index.js";
 // Initialization
 // ---------------------------------------------------------------------------
 
-console.log("[ServiceWorker] OpenCode Browser extension starting");
+console.log("[ServiceWorker] ChromeUse MCP extension starting");
 
 // --- Tool registration ---
 

@@ -1,15 +1,15 @@
-# opencode-chrome
+# ChromeUse MCP
 
-A Chrome extension that exposes browser automation as [MCP](https://modelcontextprotocol.io) tools, enabling AI coding assistants like [OpenCode](https://opencode.ai) to directly control a real Chrome browser.
+A Chrome extension that exposes browser automation as [MCP](https://modelcontextprotocol.io) tools, enabling AI coding assistants to directly control a real Chrome browser.
 
 ## What it does
 
-OpenCode (or any MCP client) can take screenshots, click, type, navigate, read page content, monitor console/network traffic, record GIFs, and more — all through structured MCP tool calls against a live Chrome session.
+ChromeUse MCP lets any MCP client take screenshots, click, type, navigate, read page content, monitor console/network traffic, record GIFs, and more through structured tool calls against a live Chrome session.
 
 ## Architecture
 
 ```
-OpenCode (AI)
+MCP client
     │  MCP protocol (stdio)
     ▼
 mcp-server          — stdio MCP server exposing 15 browser tools
@@ -25,7 +25,7 @@ Chrome Extension    — service worker dispatches tool calls via Chrome APIs & C
     └── offscreen doc     — GIF encoder (pure-JS, no deps)
 ```
 
-The MCP server connects to the native host over a Unix socket at `/tmp/opencode-browser-bridge-{user}/{pid}.sock`. The native host is launched automatically by Chrome when the extension first connects.
+The MCP server connects to the native host over a Unix socket at `/tmp/chromeuse-browser-bridge-{user}/{pid}.sock`. The native host is launched automatically by Chrome when the extension first connects.
 
 ## Tools
 
@@ -65,8 +65,8 @@ is foregrounded.
 ### 1. Clone and install
 
 ```sh
-git clone https://github.com/YOUR_USERNAME/opencode-chrome.git
-cd opencode-chrome
+git clone https://github.com/YOUR_USERNAME/chromeuse-mcp.git
+cd chromeuse-mcp
 ./scripts/install.sh
 ```
 
@@ -88,16 +88,16 @@ This installs npm dependencies, builds all packages, installs the native messagi
 
 This registers the ID in the native messaging manifest so Chrome allows the extension to communicate with the native host. You only need to do this once (or whenever the ID changes).
 
-### 4. Configure OpenCode
+### 4. Configure Your MCP Client
 
-Add to your OpenCode config (or any MCP client):
+Add ChromeUse MCP to your MCP client config:
 
 ```json
 {
   "mcpServers": {
     "chrome": {
       "command": "node",
-      "args": ["/path/to/opencode-chrome/mcp-server/dist/index.js"]
+      "args": ["/path/to/chromeuse-mcp/mcp-server/dist/index.js"]
     }
   }
 }
@@ -136,7 +136,7 @@ Each package uses [Vitest](https://vitest.dev).
 ## Project structure
 
 ```
-opencode-chrome/
+chromeuse-mcp/
 ├── shared/          # Wire protocol types, codec, tool name constants
 ├── extension/       # Chrome MV3 extension
 │   ├── src/
@@ -146,7 +146,7 @@ opencode-chrome/
 │   ├── sidepanel.html        # Side panel UI
 │   └── manifest.json
 ├── native-host/     # Chrome Native Messaging host (bridges extension ↔ socket)
-├── mcp-server/      # MCP stdio server (bridges OpenCode ↔ socket)
+├── mcp-server/      # MCP stdio server (bridges MCP clients ↔ socket)
 └── scripts/         # Build, install, and dev scripts
 ```
 

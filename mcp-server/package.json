@@ -1,13 +1,13 @@
 {
-  "name": "@opencode-chrome/mcp-server",
+  "name": "@chromeuse/mcp-server",
   "version": "0.1.0",
   "private": true,
-  "description": "MCP server exposing Chrome browser tools to OpenCode",
+  "description": "MCP server exposing Chrome browser tools for ChromeUse",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "opencode-chrome-mcp": "dist/index.js"
+    "chromeuse-mcp": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "@opencode-chrome/shared": "*"
+    "@chromeuse/shared": "*"
   },
   "devDependencies": {
     "@types/node": "^25.5.2",

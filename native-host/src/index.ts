@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * OpenCode Chrome Extension - Native Messaging Host
+ * ChromeUse MCP - Native Messaging Host
  *
  * Entry point for the native messaging host process.
  * Reads Chrome native messages from stdin, forwards them to Unix domain socket clients,

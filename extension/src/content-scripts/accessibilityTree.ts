@@ -3,7 +3,7 @@
  *
  * Walks the DOM from document.body to build a compact, LLM-readable
  * accessibility tree. Each visible interactive element gets a unique
- * ref (stored as __opencode_ref on the DOM node) that other tools
+ * ref (stored as __chromeuse_ref on the DOM node) that other tools
  * can use to target elements for clicks, form input, etc.
  *
  * Messages handled:
@@ -37,7 +37,7 @@ interface A11yNode {
 let refCounter = 0;
 
 /** Property name used to store refs on DOM elements */
-const REF_PROP = '__opencode_ref';
+const REF_PROP = '__chromeuse_ref';
 
 // --- Implicit Role Mapping ---
 

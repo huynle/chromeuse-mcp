@@ -2,7 +2,7 @@
  * Unix Domain Socket Server
  *
  * Manages a secure Unix domain socket for MCP client connections.
- * Socket path: /tmp/opencode-browser-bridge-{user}/{pid}.sock
+ * Socket path: /tmp/chromeuse-browser-bridge-{user}/{pid}.sock
  * Security: directory 0o700, socket 0o600, stale socket cleanup.
  */
 
@@ -19,7 +19,7 @@ import { platform, userInfo } from 'os'
 import { join } from 'path'
 import { log } from './log.js'
 
-const SOCKET_DIR_PREFIX = 'opencode-browser-bridge'
+const SOCKET_DIR_PREFIX = 'chromeuse-browser-bridge'
 
 function getUsername(): string {
   try {

@@ -172,7 +172,7 @@ export class FormInputTool implements ToolHandler {
       const [result] = await chrome.scripting.executeScript({
         target: { tabId },
         func: (targetRef: string, targetValue: string) => {
-          const REF_PROP = "__opencode_ref";
+          const REF_PROP = "__chromeuse_ref";
 
           function findByRef(root: Element, r: string): Element | null {
             const walker = document.createTreeWalker(
