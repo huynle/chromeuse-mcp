@@ -6,6 +6,8 @@
  *
  * Communicates with the service worker via:
  *   - chrome.runtime.sendMessage({ action: "sidepanel_get_state" })
+ *   - chrome.runtime.sendMessage({ action: "sidepanel_connect" })
+ *   - chrome.runtime.sendMessage({ action: "sidepanel_disconnect" })
  *   - chrome.runtime.sendMessage({ action: "sidepanel_stop_automation" })
  *   - chrome.runtime.onMessage listener for SidePanelBroadcast events
  */
@@ -57,7 +59,10 @@ const TOOL_STATUS_ICONS: Record<ToolExecutionEntry["status"], string> = {
 
 const statusDot = document.getElementById("status-dot") as HTMLSpanElement;
 const statusText = document.getElementById("status-text") as HTMLSpanElement;
+const connectBtn = document.getElementById("connect-btn") as HTMLButtonElement;
+const disconnectBtn = document.getElementById("disconnect-btn") as HTMLButtonElement;
 const stopBtn = document.getElementById("stop-btn") as HTMLButtonElement;
+const connectionHint = document.getElementById("connection-hint") as HTMLElement;
 const toolHistoryEl = document.getElementById("tool-history") as HTMLDivElement;
 
 // ---------------------------------------------------------------------------
@@ -81,6 +86,13 @@ function updateConnectionStatus(status: ConnectionStatus): void {
 
   // Update text
   statusText.textContent = STATUS_LABELS[status];
+
+  connectBtn.disabled = status === "connecting" || status === "connected";
+  disconnectBtn.disabled = status === "disconnected" || status === "error";
+  connectionHint.classList.toggle(
+    "hidden",
+    status !== "disconnected" && status !== "error",
+  );
 
   // Stop button is only enabled when connected (automation may be running)
   stopBtn.disabled = status !== "connected";
@@ -212,8 +224,31 @@ function listenForBroadcasts(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Stop button handler
+// Button handlers
 // ---------------------------------------------------------------------------
+
+connectBtn.addEventListener("click", async () => {
+  updateConnectionStatus("connecting");
+  try {
+    await chrome.runtime.sendMessage({
+      action: "sidepanel_connect",
+    });
+  } catch {
+    updateConnectionStatus("error");
+    console.error("[SidePanel] Failed to send connect message");
+  }
+});
+
+disconnectBtn.addEventListener("click", async () => {
+  disconnectBtn.disabled = true;
+  try {
+    await chrome.runtime.sendMessage({
+      action: "sidepanel_disconnect",
+    });
+  } catch {
+    console.error("[SidePanel] Failed to send disconnect message");
+  }
+});
 
 stopBtn.addEventListener("click", async () => {
   stopBtn.disabled = true;

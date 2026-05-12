@@ -13,8 +13,16 @@
       <span id="status-dot" class="dot disconnected"></span>
       <span id="status-text">Disconnected</span>
     </div>
-    <button id="stop-btn" class="stop-btn" disabled>Stop</button>
+    <div class="status-actions">
+      <button id="connect-btn" class="connect-btn">Connect</button>
+      <button id="disconnect-btn" class="disconnect-btn" disabled>Disconnect</button>
+      <button id="stop-btn" class="stop-btn" disabled>Stop Automation</button>
+    </div>
   </header>
+
+  <section id="connection-hint" class="connection-hint">
+    Start the MCP server, then click Connect to use WebSocket transport.
+  </section>
 
   <!-- Tool execution history -->
   <section id="history-section">

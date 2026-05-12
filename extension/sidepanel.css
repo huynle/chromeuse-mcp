@@ -21,6 +21,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 12px 16px;
   background: #16213e;
   border-bottom: 1px solid #2a2a4a;
@@ -33,6 +34,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .dot {
@@ -74,27 +76,72 @@ body {
   font-size: 13px;
 }
 
-/* ─── Stop Button ────────────────────────────────────────────────────────── */
+.status-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
 
+.connect-btn,
+.disconnect-btn,
 .stop-btn {
-  padding: 6px 14px;
+  padding: 6px 10px;
   font-size: 12px;
   font-weight: 600;
   color: #fff;
-  background: #dc2626;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.15s ease, opacity 0.15s ease;
 }
 
-.stop-btn:hover:not(:disabled) {
-  background: #b91c1c;
+.connect-btn {
+  background: #2563eb;
 }
 
+.connect-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.disconnect-btn {
+  background: #4b5563;
+}
+
+.disconnect-btn:hover:not(:disabled) {
+  background: #374151;
+}
+
+.connect-btn:disabled,
+.disconnect-btn:disabled,
 .stop-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.connection-hint {
+  margin: 12px 16px 0;
+  padding: 10px 12px;
+  color: #c7d2fe;
+  background: #1e1b4b;
+  border: 1px solid #3730a3;
+  border-radius: 8px;
+  line-height: 1.4;
+}
+
+.connection-hint.hidden {
+  display: none;
+}
+
+/* ─── Stop Button ────────────────────────────────────────────────────────── */
+
+.stop-btn {
+  background: #dc2626;
+}
+
+.stop-btn:hover:not(:disabled) {
+  background: #b91c1c;
 }
 
 /* ─── History Section ────────────────────────────────────────────────────── */
