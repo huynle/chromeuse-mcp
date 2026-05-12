@@ -18,6 +18,8 @@
   },
   "scripts": {
     "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -26,6 +28,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.5.2",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
   }
 }
