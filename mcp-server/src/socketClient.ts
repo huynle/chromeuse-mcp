@@ -23,7 +23,7 @@ import {
 import type { BrowserTransport, ToolRequestResult } from "./transport.js";
 
 /** Default timeout for tool requests (60 seconds) */
-const DEFAULT_TIMEOUT_MS = 60_000;
+export const DEFAULT_TIMEOUT_MS = 60_000;
 
 interface PendingRequest {
   readonly resolve: (response: ToolResponse) => void;
