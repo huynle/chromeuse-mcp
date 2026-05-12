@@ -4,6 +4,8 @@ ChromeUse MCP exposes these tools through the MCP server. Most page-level tools 
 
 Start most workflows with `tabs_context`, then pass the returned `tabId` to follow-up tools.
 
+Workspace/document tools operate on the folder selected in the ChromeUse side panel. They depend on Chromium File System Access permissions and should return actionable errors when no workspace is selected, permissions are lost, or the browser does not support the required API.
+
 ## Targeting Model
 
 - `tabs_context` has no inputs and returns open tabs, URLs, titles, and tab group details.
@@ -222,6 +224,49 @@ Inputs:
 
 Use `start` before the workflow, `screenshot` whenever a frame should be captured, and `stop` to finish and return the GIF.
 
+## Workspace and Document Tools
+
+The unified workspace/document foundation extends ChromeUse without bundling the Chrome Reader extension. Workspace state belongs to the ChromeUse side panel, and MCP tools communicate with that state through the existing extension transport.
+
+### Workspace Tools
+
+Workspace tools expose the selected local folder to trusted MCP clients after the user grants access in the side panel.
+
+Expected foundation capabilities:
+
+| Capability | Description |
+| --- | --- |
+| Workspace status | Report whether a workspace is selected, whether permission is currently granted, and whether the browser supports File System Access. |
+| Workspace tree/list | List directory entries lazily with depth and entry limits. |
+| Workspace file read | Read text-like files from the selected workspace when permission is granted. |
+| Actionable errors | Explain how to recover from missing selection, revoked permissions, unsupported APIs, large files, and binary files. |
+
+These tools must not assume persistent filesystem access. Stored handles can help restore a workspace, but every operation still needs current browser permission.
+
+### `markdown_render`
+
+Renders markdown to safe HTML or a clearly defined render result.
+
+Inputs:
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `markdown` | string | no | Markdown source text to render directly. |
+| `workspacePath` | string | no | Path to a markdown file inside the selected workspace. |
+| `mode` | string | no | Optional output mode when the implementation supports more than safe HTML. |
+
+Behavior:
+
+- Exactly one source should be supplied: direct `markdown` text or a workspace file path.
+- Raw HTML is disabled or sanitized by default.
+- `.md`, `.mdx`, and `.markdown` files are the primary workspace file targets.
+- Missing workspace selection, permission loss, unsupported browser APIs, unreadable files, large files, and binary files should produce actionable error messages.
+- PDF, PowerPoint, Excel, and Word rendering is not implemented by this tool in the foundation phase.
+
+### Document Routing Placeholders
+
+The side panel document router sends markdown files to preview/source rendering and sends PDF, PowerPoint, Excel, Word, unknown, binary, and oversized files to placeholder shells. Those placeholders are intentional: full document review/edit support is future work, likely involving a local companion for conversion and indexing outside the browser sandbox.
+
 ## Example Workflows
 
 ### Open a Page and Read It
@@ -249,3 +294,4 @@ Use `start` before the workflow, `screenshot` whenever a frame should be capture
 - Avoid running arbitrary JavaScript from untrusted sources.
 - Be careful with authenticated pages, payment flows, admin dashboards, and production systems.
 - Only use `file_upload` with files you explicitly intend to expose to the page.
+- Only select workspace folders you are comfortable exposing to trusted MCP clients.

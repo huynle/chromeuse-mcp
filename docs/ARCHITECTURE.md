@@ -2,6 +2,8 @@
 
 ChromeUse MCP is split into four workspaces plus helper scripts. The separation keeps browser-specific code in the extension, local WebSocket and MCP protocol handling in the MCP server, optional native messaging integration in the native host, and shared wire types in one package.
 
+The unified workspace/document foundation lives inside the ChromeUse extension. It is not a bundled Chrome Reader extension. Chrome Reader-inspired behavior is limited to a small safe markdown viewing path; the full Chrome Reader sidebar, theme system, command layer, Mermaid, KaTeX, and plugin bundle remain out of scope for this foundation.
+
 ## Components
 
 ### `mcp-server`
@@ -42,7 +44,7 @@ Key files:
 - `extension/src/content-scripts/accessibilityTree.ts`: accessibility extraction and element refs.
 - `extension/src/content-scripts/visualIndicator.ts`: automation indicator and stop control.
 - `extension/src/offscreen/`: GIF capture and encoding.
-- `extension/src/sidepanel/`: side panel status and history UI.
+- `extension/src/sidepanel/`: side panel status, history, workspace tree, and document preview UI.
 
 ### `shared`
 
@@ -53,6 +55,39 @@ Key files:
 - `shared/src/tools.ts`: tool name constants.
 - `shared/src/messages.ts`: message contracts.
 - `shared/src/lengthPrefixed.ts`: length-prefixed JSON codec.
+
+## Workspace and Document Foundation
+
+The side panel is the user-facing workspace surface. It combines the existing connection controls and tool history with local folder selection, lazy file-tree browsing, and document routing.
+
+Workspace access is browser-mediated:
+
+1. The side panel asks the user to select a directory through Chromium's File System Access API.
+2. The browser grants a `FileSystemDirectoryHandle` only after a user gesture.
+3. The extension stores recoverable handle metadata in extension storage/IndexedDB so the workspace can be restored when browser policy permits it.
+4. Each restored handle must still pass permission checks before files are listed or read.
+5. If permission is denied, revoked, or unavailable, the side panel shows a reselect-workspace action instead of silently failing.
+
+The file tree is intentionally lazy. Directory reads are bounded by depth and entry limits so large repositories do not block the side panel or service worker. File selection updates side-panel state and routes the selected entry to the document viewer layer.
+
+Document routing is isolated from tree rendering. Markdown files route to the safe markdown preview/source flow. Text files can use lightweight browser reads. PDF, PowerPoint, Excel, Word, binary, large-file, and unknown files route to placeholder shells that explain that full review/edit support is future work.
+
+### Workspace MCP Tools
+
+Workspace MCP tools are extension-backed tools that operate on the currently selected workspace and its browser-granted handles. They should follow the same request path as browser tools: MCP client to `mcp-server`, then WebSocket or native messaging to the extension service worker.
+
+The foundation tools are expected to cover these capabilities:
+
+- Report current workspace status and permission state.
+- List workspace directories/files with lazy depth and entry limits.
+- Read selected workspace file content when the browser grants access.
+- Return actionable errors for missing workspace selection, permission loss, unsupported browser APIs, large files, and binary files.
+
+The markdown render tool, `markdown_render`, is the first document-focused MCP tool. It renders markdown from direct text input or, where workspace access is available, from a selected workspace file. Raw HTML is disabled or sanitized by default.
+
+### Browser-Only Boundary
+
+This foundation intentionally stays within the browser extension sandbox. The browser can read only files the user has selected and permissioned. Heavyweight document conversion, filesystem indexing, OCR, and robust PDF/Office parsing are deferred to a future local companion direction that can run outside Chrome's extension constraints.
 
 ## Request Flow
 
@@ -128,5 +163,8 @@ ChromeUse MCP is designed for trusted local automation. The meaningful safety bo
 - MCP clients connect over stdio; the only network listener is the localhost WebSocket bridge used by the extension Connect flow.
 - The native host socket is local to the machine.
 - Most browser actions require explicit `tabId` targeting.
+- Workspace file access is scoped by Chromium File System Access permissions and can disappear when the user revokes access, the profile changes, or policy disables the API.
 
 These boundaries do not make untrusted MCP clients safe. A trusted client can still read browser content, click authenticated pages, type text, upload specified files, and execute JavaScript in tabs.
+
+Workspace tools can also read files from a user-selected local folder. Only configure trusted MCP clients when a workspace is selected.

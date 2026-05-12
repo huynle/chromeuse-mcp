@@ -9,6 +9,8 @@ ChromeUse supports two local browser transports:
 
 The **Connect** button is only for the localhost WebSocket transport. It is not a native messaging bypass and does not change Chrome native messaging policy.
 
+Workspace and document features are part of the ChromeUse side panel. They are not a bundled Chrome Reader extension, and PDF/Office support is placeholder/extensible in this foundation phase.
+
 ## MCP Server Is Not Running
 
 Symptoms:
@@ -117,6 +119,70 @@ Checks:
 3. Confirm the extension ID in policy or the manifest matches the ID shown in `chrome://extensions`.
 
 Managed Chrome policy applies to native messaging. The side panel **Connect** button uses a localhost WebSocket path instead, but it still requires the MCP server process to be running locally and does not grant native messaging access.
+
+## Workspace Folder Access Is Lost
+
+Symptoms:
+
+- The workspace tree disappears or shows a permission error.
+- Workspace MCP tools report that no workspace is selected or permission was denied.
+- A previously selected folder no longer opens after browser restart, profile change, extension reload, or policy change.
+
+Fix:
+
+1. Open the ChromeUse side panel.
+2. Reselect the workspace folder when prompted.
+3. If prompted by the browser, grant read access again.
+4. Retry the workspace or markdown tool call.
+
+Chrome grants File System Access handles through explicit user gestures. Stored handles can help restore a workspace, but Chrome may still require a fresh permission grant. Incognito profiles, cleared site/extension data, browser profile changes, and enterprise policies can all invalidate access.
+
+## File System Access API Is Unsupported
+
+Symptoms:
+
+- The side panel cannot show a folder picker.
+- Workspace features report that File System Access is unavailable.
+
+Checks:
+
+1. Use a Chromium browser that supports directory picking through the File System Access API.
+2. Confirm the extension is running in a normal profile where extension pages can use the API.
+3. Try an unmanaged Chrome/Chromium profile if a managed browser disables the API.
+
+Workspace features are browser-only in this foundation phase. If the browser cannot grant directory handles, ChromeUse cannot read arbitrary local folders until a future local companion mode exists.
+
+## Enterprise Policy Blocks Workspace Access
+
+Symptoms:
+
+- Folder selection or restored handles work in an unmanaged browser but fail in a managed Chrome profile.
+- Workspace tools consistently report denied access even after reselecting the folder.
+
+Checks:
+
+1. Open `chrome://policy` and review policies related to File System Access, extensions, native messaging, and local file access.
+2. Ask your administrator whether extension pages are allowed to use File System Access.
+3. Use an unmanaged Chromium browser for local workspace workflows when policy permits.
+
+Enterprise policy can block native messaging, localhost WebSocket connections, extension installation, or browser file APIs independently. The side panel cannot bypass those policies.
+
+## Workspace File Is Too Large or Binary
+
+Symptoms:
+
+- Opening a workspace file shows a large-file, binary-file, or unsupported-file placeholder.
+- `markdown_render` or workspace read tools refuse to return content.
+
+Explanation:
+
+The browser extension foundation is optimized for text-like files and markdown previews. Large files, binary files, PDFs, Office documents, archives, media, and unknown formats may be intentionally blocked or routed to placeholder shells to avoid freezing the side panel or returning unusable binary data.
+
+Fix:
+
+1. Open smaller text or markdown files from the workspace.
+2. Use external tools for heavyweight PDF, Office, archive, image, audio, or video processing.
+3. Watch for future local companion support for conversion, indexing, and binary document handling.
 
 ## Wrong Extension ID Registered
 

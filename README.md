@@ -11,11 +11,11 @@ It combines a Chrome extension, a stdio MCP server, a localhost WebSocket bridge
 - Target elements by `ref` from the accessibility tree, by natural-language search, or by screenshot coordinates.
 - Debug frontend behavior with console logs, network requests, screenshots, page text, and JavaScript evaluation.
 - Keep multiple agents safer by requiring explicit `tabId` targeting for most tab-scoped tools.
-- See connection status and recent tool activity in the extension side panel.
+- Use the extension side panel as a unified workspace surface for connection status, recent tool activity, selected local folders, and document previews.
 
 ## Feature Overview
 
-ChromeUse MCP exposes 15 MCP tools:
+ChromeUse MCP exposes browser automation tools plus workspace and document foundation tools:
 
 | Category | Tools | What You Can Do |
 | --- | --- | --- |
@@ -25,6 +25,8 @@ ChromeUse MCP exposes 15 MCP tools:
 | Debugging | `javascript_tool`, `read_console_messages`, `read_network_requests` | Run JavaScript through Chrome DevTools Protocol and inspect captured console/network activity. |
 | Tab management | `tabs_context`, `tabs_create`, `tabs_close` | List tabs and tab groups, create tabs, and close one or more tabs by ID. |
 | Recording | `gif_creator` | Capture browser workflows as animated GIFs. |
+| Workspace foundation | workspace tools | Work with a user-selected local folder through the Chrome extension side panel and browser-granted File System Access handles. |
+| Document foundation | `markdown_render` | Render safe markdown from supplied text or selected workspace files. PDF and Office viewers are placeholder/extensible shells in this foundation phase. |
 
 See [`docs/TOOLS.md`](docs/TOOLS.md) for detailed tool inputs, targeting rules, and example workflows.
 
@@ -48,7 +50,7 @@ Chrome extension <-----------------------------------+
     |
     +-- service worker: tool dispatch, CDP, tabs, WebSocket, native messaging
     +-- content scripts: accessibility refs and automation indicator
-    +-- side panel: connection status and tool history
+    +-- side panel: connection status, tool history, workspace tree, document preview
     +-- offscreen document: GIF encoding
 ```
 
@@ -57,6 +59,22 @@ The MCP server starts a localhost WebSocket bridge at `ws://127.0.0.1:8765` by d
 Native messaging remains available as a fallback and for browsers or environments where it is preferred. In that path, the extension asks Chrome to launch the native host. The native host opens a Unix socket at `/tmp/chromeuse-browser-bridge-{user}/{pid}.sock`, and the MCP server connects to that socket when a client makes a tool call.
 
 For more implementation detail, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## Workspace and Documents
+
+The unified workspace/document foundation is part of the ChromeUse extension. It is not a bundled copy of Chrome Reader, and it does not import Chrome Reader's full sidebar, command system, themes, Mermaid, KaTeX, or plugin stack.
+
+The side panel can act as the user's workspace surface:
+
+1. Open the ChromeUse side panel.
+2. Select a local folder when prompted by the browser.
+3. Browse the lazily loaded file tree.
+4. Open markdown files in a safe preview/source flow.
+5. Use workspace MCP tools and `markdown_render` where available to inspect workspace files from an MCP client.
+
+Workspace access uses Chromium's File System Access API. The browser requires an explicit user gesture to grant folder access, and permissions can be revoked or lost after browser/profile changes. If access is lost, reselect the workspace folder from the side panel.
+
+This foundation phase focuses on browser-only local workspace access and markdown rendering. PDF, PowerPoint, Excel, Word, binary, large-file, and unknown document support is intentionally placeholder/extensible: the UI routes these files to clear shells that explain current limits and future viewer work. Future local companion mode can move heavyweight parsing, indexing, conversion, and binary document processing outside the browser sandbox.
 
 ## Requirements
 
@@ -208,7 +226,7 @@ chromeuse-mcp/
 │   │   ├── service-worker/   # Tool handlers, CDP, tab management, bridge logic
 │   │   ├── content-scripts/  # Accessibility tree, refs, visual indicator
 │   │   ├── offscreen/        # GIF encoder
-│   │   └── sidepanel/        # Side panel UI
+│   │   └── sidepanel/        # Side panel UI, workspace tree, document preview
 │   ├── sidepanel.html
 │   └── manifest.json
 ├── native-host/     # Chrome Native Messaging host and manifest installer
