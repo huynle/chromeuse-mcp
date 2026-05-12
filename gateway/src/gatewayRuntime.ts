@@ -19,6 +19,7 @@ export interface GatewayConfig {
   readonly mode: GatewayMode;
   readonly gatewayHost: string;
   readonly gatewayPort: number;
+  readonly clientId: string;
 }
 
 interface McpServerLike {
@@ -35,7 +36,10 @@ interface RuntimeDependencies {
     env: Pick<NodeJS.ProcessEnv, "CHROMEUSE_WS_PORT">;
   }) => BrowserTransport;
   readonly createQueueTransport?: (transport: BrowserTransport) => BrowserTransport;
-  readonly createGatewayServerImpl?: (options: { transport: BrowserTransport }) => HttpServer;
+  readonly createGatewayServerImpl?: (options: {
+    transport: BrowserTransport;
+    clientId: string;
+  }) => HttpServer;
   readonly createHttpGatewayTransport?: (baseUrl: string) => BrowserTransport;
 }
 
@@ -51,7 +55,11 @@ export function resolveGatewayConfig(env: NodeJS.ProcessEnv = process.env): Gate
   return {
     mode,
     gatewayHost: env.CHROMEUSE_GATEWAY_HOST || DEFAULT_GATEWAY_HOST,
-    gatewayPort: parsePort(env.CHROMEUSE_GATEWAY_PORT) ?? DEFAULT_GATEWAY_PORT,
+    gatewayPort:
+      parsePort(env.CHROMEUSE_GATEWAY_PORT) ??
+      parsePort(env.CHROMEUSE_HTTP_PORT) ??
+      DEFAULT_GATEWAY_PORT,
+    clientId: env.CHROMEUSE_GATEWAY_CLIENT_ID || env.CHROMEUSE_CLIENT_ID || generateClientId(),
   };
 }
 
@@ -75,7 +83,10 @@ export async function startGateway(
     const baseUrl = `http://${config.gatewayHost}:${config.gatewayPort}`;
 
     const deferredTransport = new DeferredBrowserTransport();
-    const httpServer = createHttpServer({ transport: deferredTransport });
+    const httpServer = createHttpServer({
+      transport: deferredTransport,
+      clientId: config.clientId,
+    });
 
     try {
       await listen(httpServer, config.gatewayPort, config.gatewayHost);
@@ -236,6 +247,10 @@ function parsePort(value: string | undefined): number | undefined {
   const port = Number(value);
   if (!Number.isInteger(port) || port < 0 || port > 65_535) return undefined;
   return port;
+}
+
+function generateClientId(): string {
+  return `chromeuse-gateway-${process.pid}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function listen(server: HttpServer, port: number, host: string): Promise<void> {

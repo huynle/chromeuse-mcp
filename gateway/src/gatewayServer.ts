@@ -7,6 +7,7 @@ const GATEWAY_VERSION = "1.0.0";
 
 export interface GatewayServerOptions {
   readonly transport: BrowserTransport;
+  readonly clientId: string;
 }
 
 interface ToolRequestBody {
@@ -23,6 +24,9 @@ export function createGatewayServer(options: GatewayServerOptions): Server {
       writeJson(response, 200, {
         gateway: GATEWAY_IDENTITY,
         version: GATEWAY_VERSION,
+        protocol: GATEWAY_IDENTITY,
+        protocolVersion: GATEWAY_VERSION,
+        client_id: options.clientId,
         extensionConnected: options.transport.connected,
       });
       return;

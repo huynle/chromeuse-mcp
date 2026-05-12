@@ -40,7 +40,7 @@ async function startServer(transport = new FakeTransport()): Promise<{
   readonly baseUrl: string;
   readonly transport: FakeTransport;
 }> {
-  const server = createGatewayServer({ transport });
+  const server = createGatewayServer({ transport, clientId: "test-client" });
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address() as AddressInfo;
@@ -58,6 +58,9 @@ describe("createGatewayServer", () => {
     await expect(response.json()).resolves.toEqual({
       gateway: "chromeuse-http-gateway",
       version: "1.0.0",
+      protocol: "chromeuse-http-gateway",
+      protocolVersion: "1.0.0",
+      client_id: "test-client",
       extensionConnected: true,
     });
   });

@@ -33,30 +33,29 @@ See [`docs/TOOLS.md`](docs/TOOLS.md) for detailed tool inputs, targeting rules, 
 ## How It Works
 
 ```text
-MCP client
+OpenCode / MCP client
     |  MCP protocol over stdio
     v
-mcp-server
+gateway
     |\
-    | \  preferred: localhost WebSocket ws://127.0.0.1:8765
-    |  +---------------------------------------------+
-    |                                                v
-    |  fallback: length-prefixed JSON over Unix socket
-    v                                                |
-native-host                                          |
-    |  Chrome Native Messaging over stdin/stdout     |
-    v                                                |
-Chrome extension <-----------------------------------+
+    | \  SERVER: owns HTTP gateway + WebSocket bridge
+    |  \
+    |   +---- PROXY: forwards to existing SERVER over HTTP
     |
-    +-- service worker: tool dispatch, CDP, tabs, WebSocket, native messaging
-    +-- content scripts: accessibility refs and automation indicator
-    +-- side panel: connection status, tool history, workspace tree, document preview
-    +-- offscreen document: GIF encoding
+    |  WebSocket-only browser path ws://127.0.0.1:8765
+    v
+Chrome extension
+
+Direct legacy path:
+
+MCP client -> mcp-server -> native-host -> Chrome extension
 ```
 
-The MCP server starts a localhost WebSocket bridge at `ws://127.0.0.1:8765` by default. Open the ChromeUse side panel and click **Connect** to attach the extension to that bridge. This Connect flow is for the localhost WebSocket transport; it is not a native messaging bypass and it still requires the MCP server to be running.
+The gateway entry point, `gateway/dist/index.js`, lets multiple OpenCode instances share one ChromeUse extension connection. In gateway SERVER mode, the first process binds the local HTTP gateway and owns the WebSocket bridge. Later OpenCode instances detect that compatible gateway and become PROXY processes that forward tool calls to the SERVER instead of opening another extension bridge.
 
-Native messaging remains available as a fallback and for browsers or environments where it is preferred. In that path, the extension asks Chrome to launch the native host. The native host opens a Unix socket at `/tmp/chromeuse-browser-bridge-{user}/{pid}.sock`, and the MCP server connects to that socket when a client makes a tool call.
+The gateway MVP is WebSocket-only for browser traffic. Open the ChromeUse side panel and click **Connect** to attach the extension to `ws://127.0.0.1:8765` by default. This Connect flow is not a native messaging bypass and it still requires a gateway SERVER process to be running.
+
+Native messaging remains available only on the direct `mcp-server/dist/index.js` path. In that path, the extension asks Chrome to launch the native host. The native host opens a Unix socket at `/tmp/chromeuse-browser-bridge-{user}/{pid}.sock`, and the MCP server connects to that socket when a client makes a tool call.
 
 For more implementation detail, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
@@ -132,7 +131,32 @@ CHROMEUSE_EXTENSION_IDS=<id-1>,<id-2> ./scripts/install.sh
 
 ### 4. Configure Your MCP Client
 
-Add ChromeUse MCP as a stdio server. Use an absolute path to `mcp-server/dist/index.js`.
+For OpenCode and other clients that may start multiple ChromeUse MCP instances, use the gateway entry point. Use an absolute path to `gateway/dist/index.js`.
+
+```json
+{
+  "mcpServers": {
+    "chromeuse": {
+      "command": "node",
+      "args": ["/absolute/path/to/chromeuse-mcp/gateway/dist/index.js"],
+      "env": {
+        "CHROMEUSE_GATEWAY_MODE": "SERVER"
+      }
+    }
+  }
+}
+```
+
+Restart your MCP client after changing its config.
+
+Gateway environment variables:
+
+- `CHROMEUSE_GATEWAY_MODE=SERVER`: enables the HTTP gateway election path. The first process becomes SERVER; later compatible processes become PROXY automatically.
+- `CHROMEUSE_HTTP_PORT`: local HTTP gateway port used by SERVER and PROXY processes. Use the same value for all OpenCode instances that should share one extension connection. Default: `8766`.
+- `CHROMEUSE_WS_PORT`: WebSocket bridge port that the ChromeUse side panel connects to. Default: `8765`.
+- `CHROMEUSE_CLIENT_ID`: optional label for identifying a client instance in logs or diagnostics.
+
+If you need the older native messaging fallback behavior, configure the direct MCP server instead:
 
 ```json
 {
@@ -145,18 +169,18 @@ Add ChromeUse MCP as a stdio server. Use an absolute path to `mcp-server/dist/in
 }
 ```
 
-Restart your MCP client after changing its config.
+Use `gateway/dist/index.js` for shared OpenCode gateway behavior. Use `mcp-server/dist/index.js` when you specifically need direct native messaging fallback.
 
 ### 5. Verify the Connection
 
-1. Restart your MCP client so it starts `mcp-server/dist/index.js`.
+1. Restart your MCP client so it starts `gateway/dist/index.js`.
 2. Open a normal web page in the browser where the extension is loaded.
 3. Open the ChromeUse MCP side panel from the extension toolbar.
 4. Click **Connect** to use the localhost WebSocket transport.
 5. Ask your MCP client to call `tabs_context`.
 6. Use one returned `tabId` with `read_page` or `computer` screenshot.
 
-The WebSocket bridge listens on `127.0.0.1:8765` by default. Keep that port free for the side panel Connect flow. Advanced setups can set `CHROMEUSE_WS_PORT=<port>` in the MCP client server environment, but the extension must connect to the same WebSocket URL. If you do not click **Connect**, ChromeUse can still use native messaging when the native host is installed and the extension ID is registered.
+The WebSocket bridge listens on `127.0.0.1:8765` by default. Keep that port free for the side panel Connect flow. Advanced setups can set `CHROMEUSE_WS_PORT=<port>` in the MCP client server environment, but the extension must connect to the same WebSocket URL. Gateway mode does not use native messaging fallback; configure `mcp-server/dist/index.js` directly if you need that fallback.
 
 If the server cannot connect, see [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
 
@@ -230,7 +254,8 @@ chromeuse-mcp/
 │   ├── sidepanel.html
 │   └── manifest.json
 ├── native-host/     # Chrome Native Messaging host and manifest installer
-├── mcp-server/      # MCP stdio server that bridges clients to the native host
+├── mcp-server/      # Direct MCP stdio server with native messaging fallback
+├── gateway/         # Multi-OpenCode stdio gateway with HTTP SERVER/PROXY sharing
 ├── scripts/         # Install, build, and development scripts
 └── docs/            # User and maintainer documentation
 ```

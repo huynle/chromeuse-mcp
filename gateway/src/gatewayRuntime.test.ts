@@ -46,13 +46,36 @@ describe("gateway runtime", () => {
   });
 
   it("uses local HTTP gateway host and port env in server mode", () => {
-    expect(
-      resolveGatewayConfig({
-        CHROMEUSE_GATEWAY_MODE: "server",
-        CHROMEUSE_GATEWAY_HOST: "127.0.0.2",
-        CHROMEUSE_GATEWAY_PORT: "9123",
-      })
-    ).toEqual({ mode: "server", gatewayHost: "127.0.0.2", gatewayPort: 9123 });
+    const config = resolveGatewayConfig({
+      CHROMEUSE_GATEWAY_MODE: "server",
+      CHROMEUSE_GATEWAY_HOST: "127.0.0.2",
+      CHROMEUSE_HTTP_PORT: "9123",
+      CHROMEUSE_CLIENT_ID: "configured-client",
+    });
+
+    expect(config).toEqual({
+      mode: "server",
+      gatewayHost: "127.0.0.2",
+      gatewayPort: 9123,
+      clientId: "configured-client",
+    });
+  });
+
+  it("accepts documented client id and HTTP port environment overrides", () => {
+    const config = resolveGatewayConfig({
+      CHROMEUSE_GATEWAY_MODE: "server",
+      CHROMEUSE_HTTP_PORT: "4455",
+      CHROMEUSE_CLIENT_ID: "gateway-client",
+    });
+
+    expect(config.gatewayPort).toBe(4455);
+    expect(config.clientId).toBe("gateway-client");
+  });
+
+  it("generates a client id when no environment override is provided", () => {
+    const config = resolveGatewayConfig({});
+
+    expect(config.clientId).toMatch(/^chromeuse-gateway-\d+-[a-z0-9]+$/);
   });
 
   it("starts default stdio without creating an HTTP server or injected queue", async () => {
@@ -74,6 +97,7 @@ describe("gateway runtime", () => {
     expect(runtime.mode).toBe("stdio");
     expect(createMcpServerImpl).toHaveBeenCalledWith();
     expect(mcpServer.connect).toHaveBeenCalledWith(stdioTransport);
+    expect(runtime.config.clientId).toMatch(/^chromeuse-gateway-\d+-[a-z0-9]+$/);
     expect(createGatewayServerImpl).not.toHaveBeenCalled();
     expect(createQueueTransport).not.toHaveBeenCalled();
 
@@ -91,9 +115,14 @@ describe("gateway runtime", () => {
     const createQueueTransport = vi.fn(() => queue);
     const createMcpServerImpl = vi.fn(async () => mcpServer);
     const createGatewayServerImpl = vi.fn(() => httpServer as never);
+    const env = {
+      CHROMEUSE_GATEWAY_MODE: "server",
+      CHROMEUSE_HTTP_PORT: "0",
+      CHROMEUSE_CLIENT_ID: "runtime-client",
+    };
 
     const runtime = await startGateway({
-      env: { CHROMEUSE_GATEWAY_MODE: "server", CHROMEUSE_GATEWAY_PORT: "0" },
+      env,
       stderr: { write: vi.fn() },
       createWebSocketBridge,
       createQueueTransport,
@@ -109,6 +138,10 @@ describe("gateway runtime", () => {
     expect(createQueueTransport).toHaveBeenCalledWith(bridge);
     expect(queue.connect).toHaveBeenCalledTimes(1);
     expect(createMcpServerImpl).toHaveBeenCalledWith(queue);
+    expect(createGatewayServerImpl).toHaveBeenCalledWith({
+      transport: expect.anything(),
+      clientId: "runtime-client",
+    });
     expect(mcpServer.connect).toHaveBeenCalledWith(stdioTransport);
     const serverTransport = createGatewayServerImpl.mock.calls[0]?.[0].transport;
     expect(serverTransport).not.toBe(queue);
@@ -135,7 +168,7 @@ describe("gateway runtime", () => {
     const createHttpGatewayTransport = vi.fn(() => proxyTransport);
 
     const runtime = await startGateway({
-      env: { CHROMEUSE_GATEWAY_MODE: "server", CHROMEUSE_GATEWAY_PORT: "8766" },
+      env: { CHROMEUSE_GATEWAY_MODE: "server", CHROMEUSE_HTTP_PORT: "8766" },
       stderr: { write: vi.fn() },
       createWebSocketBridge,
       createMcpServerImpl,
@@ -165,7 +198,7 @@ describe("gateway runtime", () => {
 
     await expect(
       startGateway({
-        env: { CHROMEUSE_GATEWAY_MODE: "server", CHROMEUSE_GATEWAY_PORT: "0" },
+        env: { CHROMEUSE_GATEWAY_MODE: "server", CHROMEUSE_HTTP_PORT: "0" },
         stderr: { write: vi.fn() },
         createWebSocketBridge: vi.fn(() => bridge),
         createQueueTransport: vi.fn(() => queue),
@@ -196,7 +229,7 @@ describe("gateway runtime", () => {
 
     await expect(
       startGateway({
-        env: { CHROMEUSE_GATEWAY_MODE: "server", CHROMEUSE_GATEWAY_PORT: "8766" },
+        env: { CHROMEUSE_GATEWAY_MODE: "server", CHROMEUSE_HTTP_PORT: "8766" },
         stderr,
         createWebSocketBridge: vi.fn(() => new FakeBrowserTransport()),
         createMcpServerImpl: vi.fn(async () => mcpServer),

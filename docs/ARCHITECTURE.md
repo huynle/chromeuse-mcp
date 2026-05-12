@@ -1,6 +1,6 @@
 # Architecture
 
-ChromeUse MCP is split into four workspaces plus helper scripts. The separation keeps browser-specific code in the extension, local WebSocket and MCP protocol handling in the MCP server, optional native messaging integration in the native host, and shared wire types in one package.
+ChromeUse MCP is split into five workspaces plus helper scripts. The separation keeps browser-specific code in the extension, local WebSocket and MCP protocol handling in the MCP server, multi-OpenCode gateway coordination in the gateway, optional native messaging integration in the native host, and shared wire types in one package.
 
 The unified workspace/document foundation lives inside the ChromeUse extension. It is not a bundled Chrome Reader extension. Chrome Reader-inspired behavior is limited to a small safe markdown viewing path; the full Chrome Reader sidebar, theme system, command layer, Mermaid, KaTeX, and plugin bundle remain out of scope for this foundation.
 
@@ -8,7 +8,7 @@ The unified workspace/document foundation lives inside the ChromeUse extension. 
 
 ### `mcp-server`
 
-The MCP server is a Node.js stdio server. It registers the tool schemas exposed to MCP clients and forwards tool calls through a WebSocket-first browser transport. The preferred path is a localhost WebSocket bridge for extensions that click Connect in the side panel; native messaging remains available as fallback through a local Unix domain socket.
+The MCP server is a Node.js stdio server. It registers the tool schemas exposed to MCP clients and forwards tool calls through a WebSocket-first browser transport. When it is used directly, native messaging remains available as fallback through a local Unix domain socket.
 
 Key files:
 
@@ -16,6 +16,22 @@ Key files:
 - `mcp-server/src/server.ts`: MCP server factory and tool schemas.
 - `mcp-server/src/webSocketBridge.ts`: localhost WebSocket bridge for side panel Connect sessions.
 - `mcp-server/src/socketClient.ts`: native host socket discovery and request forwarding.
+
+### `gateway`
+
+The gateway is the recommended OpenCode entry point when multiple OpenCode instances may share one ChromeUse extension connection. It exposes the same MCP tools over stdio to each client process, but coordinates browser access through one local HTTP gateway and one WebSocket bridge.
+
+Key files:
+
+- `gateway/src/index.ts`: stdio gateway entry point.
+- `gateway/src/gatewayRuntime.ts`: SERVER/PROXY election and lifecycle.
+- `gateway/src/gatewayServer.ts`: local HTTP `/health` and `/tool` endpoints.
+- `gateway/src/httpGatewayTransport.ts`: PROXY transport for forwarding tool calls to an existing SERVER.
+- `gateway/src/requestQueue.ts`: serializes browser tool requests through the shared WebSocket bridge.
+
+Gateway mode is selected with `CHROMEUSE_GATEWAY_MODE=SERVER`. The first process that can bind the local HTTP port becomes SERVER. If another gateway process starts with the same HTTP port and finds a compatible `/health` response, it becomes PROXY and forwards tool calls to the SERVER over HTTP.
+
+Gateway browser traffic is WebSocket-only in the MVP. The SERVER owns the WebSocket bridge to the extension, and PROXY processes never open native messaging sessions. Direct `mcp-server/dist/index.js` keeps native messaging fallback for users who need Chrome native messaging behavior.
 
 ### `native-host`
 
@@ -74,7 +90,7 @@ Document routing is isolated from tree rendering. Markdown files route to the sa
 
 ### Workspace MCP Tools
 
-Workspace MCP tools are extension-backed tools that operate on the currently selected workspace and its browser-granted handles. They should follow the same request path as browser tools: MCP client to `mcp-server`, then WebSocket or native messaging to the extension service worker.
+Workspace MCP tools are extension-backed tools that operate on the currently selected workspace and its browser-granted handles. They should follow the same request path as browser tools: MCP client to `gateway` or `mcp-server`, then WebSocket or native messaging to the extension service worker depending on the configured entry point.
 
 The foundation tools are expected to cover these capabilities:
 
@@ -92,23 +108,41 @@ This foundation intentionally stays within the browser extension sandbox. The br
 ## Request Flow
 
 ```text
-MCP client
+OpenCode / MCP client
     |  MCP protocol over stdio
     v
-mcp-server
+gateway
     |\
-    | \  preferred: ws://127.0.0.1:8765
-    |  +-------------------------------> Chrome extension
-    |
-    |  fallback: Unix socket
-    v
-native-host
-    |  Chrome Native Messaging
+    | \  SERVER owns local HTTP + ws://127.0.0.1:8765
+    |  \
+    |   +---- PROXY forwards to SERVER over local HTTP
     v
 Chrome extension
+
+Direct fallback-capable path:
+
+MCP client -> mcp-server -> WebSocket or native-host -> Chrome extension
 ```
 
-### WebSocket Connect Path
+### Gateway SERVER/PROXY Path
+
+1. OpenCode starts `node gateway/dist/index.js` as a stdio process.
+2. `CHROMEUSE_GATEWAY_MODE=SERVER` enables local HTTP gateway coordination.
+3. The first process binds `127.0.0.1:<CHROMEUSE_HTTP_PORT>` and becomes SERVER.
+4. The SERVER starts one WebSocket bridge on `127.0.0.1:<CHROMEUSE_WS_PORT>`.
+5. The user opens the ChromeUse side panel and clicks **Connect**.
+6. Later OpenCode instances start the same gateway entry point, fail to bind the occupied HTTP port, probe `/health`, and become PROXY if the existing SERVER is compatible.
+7. PROXY instances accept MCP stdio calls from their own OpenCode process and forward `/tool` requests to the SERVER over HTTP.
+8. The SERVER queues and sends browser requests over the single WebSocket connection to the extension.
+
+Configuration variables:
+
+- `CHROMEUSE_GATEWAY_MODE=SERVER`: enables SERVER/PROXY behavior.
+- `CHROMEUSE_HTTP_PORT`: local HTTP gateway port shared by all OpenCode instances. Default: `8766`.
+- `CHROMEUSE_WS_PORT`: extension WebSocket bridge port. Default: `8765`.
+- `CHROMEUSE_CLIENT_ID`: optional client identifier for logs or diagnostics.
+
+### Direct WebSocket Connect Path
 
 1. An MCP client starts `node mcp-server/dist/index.js` as a stdio process.
 2. The MCP server starts a WebSocket bridge on `127.0.0.1:8765`, or on `CHROMEUSE_WS_PORT` when that environment variable is set.
@@ -118,7 +152,7 @@ Chrome extension
 
 The Connect button only attaches the extension to the MCP server's localhost WebSocket bridge. It does not bypass native messaging policy for the native host path, and it cannot work unless the MCP server process is already running.
 
-### Native Messaging Fallback Path
+### Direct Native Messaging Fallback Path
 
 1. An MCP client starts `node mcp-server/dist/index.js` as a stdio process.
 2. The MCP client calls a ChromeUse MCP tool.
@@ -143,6 +177,8 @@ The generated native messaging manifest contains:
 - `type`: `stdio`
 - `allowed_origins`: `chrome-extension://<id>/` values
 
+The gateway does not bypass or replace this policy. Gateway MVP traffic reaches the extension through the side panel WebSocket connection only. Native messaging registration matters for the direct `mcp-server/dist/index.js` path and for any browser profile where direct native fallback is required.
+
 ## Build Order
 
 `scripts/build.sh` builds packages in dependency order:
@@ -151,6 +187,7 @@ The generated native messaging manifest contains:
 2. `native-host`
 3. `extension`
 4. `mcp-server`
+5. `gateway`
 
 The extension build uses esbuild. The TypeScript packages use `tsc`.
 
@@ -160,7 +197,8 @@ ChromeUse MCP is designed for trusted local automation. The meaningful safety bo
 
 - Chrome's native messaging `allowed_origins` list limits which extension IDs can launch the host.
 - The WebSocket bridge binds to `127.0.0.1` and is intended for local MCP clients only.
-- MCP clients connect over stdio; the only network listener is the localhost WebSocket bridge used by the extension Connect flow.
+- MCP clients connect over stdio. In gateway SERVER mode, the local HTTP gateway and WebSocket bridge both bind to localhost.
+- Gateway PROXY processes forward to a compatible localhost SERVER; they do not connect directly to the extension.
 - The native host socket is local to the machine.
 - Most browser actions require explicit `tabId` targeting.
 - Workspace file access is scoped by Chromium File System Access permissions and can disappear when the user revokes access, the profile changes, or policy disables the API.

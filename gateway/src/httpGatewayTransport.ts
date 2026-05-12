@@ -7,6 +7,9 @@ const COMPATIBLE_VERSION_PREFIX = "1.";
 interface HealthResponse {
   readonly gateway?: unknown;
   readonly version?: unknown;
+  readonly protocol?: unknown;
+  readonly protocolVersion?: unknown;
+  readonly client_id?: unknown;
 }
 
 interface ToolGatewayResponse {
@@ -108,6 +111,11 @@ function isCompatibleHealth(health: HealthResponse): boolean {
   return (
     health.gateway === GATEWAY_IDENTITY &&
     typeof health.version === "string" &&
-    health.version.startsWith(COMPATIBLE_VERSION_PREFIX)
+    health.version.startsWith(COMPATIBLE_VERSION_PREFIX) &&
+    health.protocol === GATEWAY_IDENTITY &&
+    typeof health.protocolVersion === "string" &&
+    health.protocolVersion.startsWith(COMPATIBLE_VERSION_PREFIX) &&
+    typeof health.client_id === "string" &&
+    health.client_id.length > 0
   );
 }

@@ -8,7 +8,7 @@
  *
  * Usage:
  *   node gateway/dist/index.js
- *   CHROMEUSE_GATEWAY_MODE=server node gateway/dist/index.js
+ *   CHROMEUSE_GATEWAY_MODE=server CHROMEUSE_HTTP_PORT=8766 node gateway/dist/index.js
  */
 
 import { startGateway } from "./gatewayRuntime.js";
