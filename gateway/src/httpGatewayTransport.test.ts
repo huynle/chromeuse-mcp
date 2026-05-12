@@ -22,6 +22,7 @@ function compatibleHealth(overrides: Record<string, unknown> = {}): Record<strin
 
 describe("HttpGatewayTransport", () => {
   it("connects after compatible health and maps successful tool responses", async () => {
+    const logger = vi.fn();
     const fetch = vi
       .fn<typeof globalThis.fetch>()
       .mockResolvedValueOnce(jsonResponse(compatibleHealth()))
@@ -30,6 +31,7 @@ describe("HttpGatewayTransport", () => {
       );
     const transport = new HttpGatewayTransport("http://127.0.0.1:34123/", {
       fetch,
+      logger,
     });
 
     await transport.connect();
@@ -51,6 +53,26 @@ describe("HttpGatewayTransport", () => {
       })
     );
     expect(result).toEqual({ content: [{ type: "text", text: "ok" }] });
+    expect(logger).toHaveBeenCalledWith(expect.stringContaining("mode=PROXY event=request_start"));
+    expect(logger).toHaveBeenCalledWith(
+      expect.stringContaining("mode=PROXY event=request_end status=200")
+    );
+    expect(logger).toHaveBeenCalledWith(expect.stringContaining("tool=tabs_context"));
+  });
+
+  it("logs PROXY probe failures", async () => {
+    const logger = vi.fn();
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(jsonResponse(compatibleHealth({ protocolVersion: "2.0.0" })));
+    const transport = new HttpGatewayTransport("http://127.0.0.1:34123", { fetch, logger });
+
+    await expect(transport.connect()).rejects.toThrow("Incompatible ChromeUse HTTP gateway");
+
+    expect(logger).toHaveBeenCalledWith(
+      expect.stringContaining("mode=PROXY event=probe_failure")
+    );
+    expect(logger).toHaveBeenCalledWith(expect.stringContaining("base_url=http://127.0.0.1:34123"));
   });
 
   it("maps gateway tool error responses to MCP error results", async () => {

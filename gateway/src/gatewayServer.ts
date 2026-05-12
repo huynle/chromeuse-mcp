@@ -8,6 +8,7 @@ const GATEWAY_VERSION = "1.0.0";
 export interface GatewayServerOptions {
   readonly transport: BrowserTransport;
   readonly clientId: string;
+  readonly logger?: (message: string) => void;
 }
 
 interface ToolRequestBody {
@@ -38,7 +39,7 @@ export function createGatewayServer(options: GatewayServerOptions): Server {
         return;
       }
 
-      await handleToolRequest(request, response, options.transport);
+      await handleToolRequest(request, response, options.transport, options.logger);
       return;
     }
 
@@ -49,23 +50,33 @@ export function createGatewayServer(options: GatewayServerOptions): Server {
 async function handleToolRequest(
   request: IncomingMessage,
   response: ServerResponse,
-  transport: BrowserTransport
+  transport: BrowserTransport,
+  logger?: (message: string) => void
 ): Promise<void> {
+  const start = Date.now();
   let parsedBody: unknown;
   try {
     parsedBody = JSON.parse(await readRequestBody(request));
   } catch {
+    logGateway(logger, "mode=SERVER event=request_end status=400 error=invalid_json");
     writeToolError(response, 400, "Invalid JSON request body");
     return;
   }
 
   const toolRequest = normalizeToolRequestBody(parsedBody);
   if (!toolRequest) {
+    logGateway(logger, "mode=SERVER event=request_end status=400 error=invalid_body");
     writeToolError(response, 400, "Invalid tool request body");
     return;
   }
 
+  logGateway(logger, `mode=SERVER event=request_start tool=${toolRequest.tool}`);
+
   if (!transport.connected) {
+    logGateway(
+      logger,
+      `mode=SERVER event=request_end status=503 tool=${toolRequest.tool} duration_ms=${Date.now() - start}`
+    );
     writeToolError(response, 503, "No extension connected");
     return;
   }
@@ -77,11 +88,23 @@ async function handleToolRequest(
       toolRequest.timeoutMs
     );
     writeJson(response, 200, result);
+    logGateway(
+      logger,
+      `mode=SERVER event=request_end status=200 tool=${toolRequest.tool} duration_ms=${Date.now() - start}`
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const status = message === "No extension connected" ? 503 : 500;
     writeToolError(response, status, message);
+    logGateway(
+      logger,
+      `mode=SERVER event=request_end status=${status} tool=${toolRequest.tool} duration_ms=${Date.now() - start}`
+    );
   }
+}
+
+function logGateway(logger: ((message: string) => void) | undefined, message: string): void {
+  logger?.(message);
 }
 
 function normalizeToolRequestBody(body: unknown): ToolRequestBody | null {

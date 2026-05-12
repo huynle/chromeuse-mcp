@@ -9,12 +9,19 @@ interface QueuedRequest {
   settled: boolean;
 }
 
+export interface RequestQueueTransportOptions {
+  readonly logger?: (message: string) => void;
+}
+
 export class RequestQueueTransport implements BrowserTransport {
   private readonly queue: QueuedRequest[] = [];
   private activeRequest: QueuedRequest | null = null;
   private disconnected = false;
 
-  constructor(private readonly transport: BrowserTransport) {}
+  constructor(
+    private readonly transport: BrowserTransport,
+    private readonly options: RequestQueueTransportOptions = {}
+  ) {}
 
   get connected(): boolean {
     return this.transport.connected;
@@ -43,6 +50,7 @@ export class RequestQueueTransport implements BrowserTransport {
         reject,
         settled: false,
       });
+      this.logDepth();
       this.processNext();
     });
   }
@@ -66,6 +74,7 @@ export class RequestQueueTransport implements BrowserTransport {
     }
 
     this.activeRequest = request;
+    this.logDepth();
     this.transport
       .sendToolRequest(request.tool, request.args, request.timeoutMs)
       .then((result) => {
@@ -79,6 +88,7 @@ export class RequestQueueTransport implements BrowserTransport {
       })
       .finally(() => {
         if (this.activeRequest === request) this.activeRequest = null;
+        this.logDepth();
         this.processNext();
       });
   }
@@ -105,5 +115,12 @@ export class RequestQueueTransport implements BrowserTransport {
     for (const request of pending) {
       this.rejectRequest(request, error);
     }
+    this.logDepth();
+  }
+
+  private logDepth(): void {
+    this.options.logger?.(
+      `mode=SERVER event=queue_depth depth=${this.queue.length + (this.activeRequest ? 1 : 0)}`
+    );
   }
 }

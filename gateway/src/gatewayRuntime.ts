@@ -39,8 +39,12 @@ interface RuntimeDependencies {
   readonly createGatewayServerImpl?: (options: {
     transport: BrowserTransport;
     clientId: string;
+    logger?: (message: string) => void;
   }) => HttpServer;
-  readonly createHttpGatewayTransport?: (baseUrl: string) => BrowserTransport;
+  readonly createHttpGatewayTransport?: (
+    baseUrl: string,
+    options?: { logger?: (message: string) => void }
+  ) => BrowserTransport;
 }
 
 export interface GatewayRuntime {
@@ -69,6 +73,7 @@ export async function startGateway(
   const env = dependencies.env ?? process.env;
   const stderr = dependencies.stderr ?? process.stderr;
   const config = resolveGatewayConfig(env);
+  const logger = createStderrLogger(stderr);
   const createMcp = dependencies.createMcpServerImpl ?? createMcpServer;
   const createStdio = dependencies.createStdioTransport ?? (() => new StdioServerTransport());
 
@@ -76,29 +81,32 @@ export async function startGateway(
     const createBridge =
       dependencies.createWebSocketBridge ?? ((options) => new WebSocketBridge(options));
     const createQueue =
-      dependencies.createQueueTransport ?? ((transport) => new RequestQueueTransport(transport));
+      dependencies.createQueueTransport ??
+      ((transport) => new RequestQueueTransport(transport, { logger }));
     const createHttpServer = dependencies.createGatewayServerImpl ?? createGatewayServer;
     const createHttpGatewayTransport =
-      dependencies.createHttpGatewayTransport ?? ((baseUrl) => new HttpGatewayTransport(baseUrl));
+      dependencies.createHttpGatewayTransport ??
+      ((baseUrl, options) => new HttpGatewayTransport(baseUrl, options));
     const baseUrl = `http://${config.gatewayHost}:${config.gatewayPort}`;
 
     const deferredTransport = new DeferredBrowserTransport();
     const httpServer = createHttpServer({
       transport: deferredTransport,
       clientId: config.clientId,
+      logger,
     });
 
     try {
       await listen(httpServer, config.gatewayPort, config.gatewayHost);
     } catch (error) {
       if (isAddressInUse(error)) {
-        const proxyTransport = createHttpGatewayTransport(baseUrl);
+        const proxyTransport = createHttpGatewayTransport(baseUrl, { logger });
         try {
           await proxyTransport.connect();
         } catch (proxyError) {
           const message = errorMessage(proxyError);
-          stderr.write(
-            `Unable to start ChromeUse MCP gateway proxy: existing gateway at ${baseUrl} did not pass compatible /health probe. ${message}\n`
+          logger(
+            `mode=PROXY event=probe_failure base_url=${baseUrl} error=${message}`
           );
           throw new Error(
             `Unable to start ChromeUse MCP gateway proxy: existing gateway at ${baseUrl} did not pass compatible /health probe. ${message}`
@@ -111,7 +119,7 @@ export async function startGateway(
           await mcpServer.connect(createStdio());
           const activeMcpServer = mcpServer;
 
-          stderr.write(`ChromeUse MCP gateway started (proxy, ${baseUrl})\n`);
+          logger(formatStartupLog("PROXY", config, baseUrl, env));
 
           return {
             mode: "proxy",
@@ -125,8 +133,8 @@ export async function startGateway(
           proxyTransport.disconnect();
           await mcpServer?.close();
           const message = errorMessage(proxyStartupError);
-          stderr.write(
-            `Unable to start ChromeUse MCP gateway proxy: proxy startup failed after compatible /health at ${baseUrl}. ${message}\n`
+          logger(
+            `mode=PROXY event=startup_failure reason="proxy startup failed after compatible /health" base_url=${baseUrl} error=${message}`
           );
           throw new Error(
             `Unable to start ChromeUse MCP gateway proxy: proxy startup failed after compatible /health at ${baseUrl}. ${message}`
@@ -135,9 +143,7 @@ export async function startGateway(
       }
 
       const message = errorMessage(error);
-      stderr.write(
-        `Unable to start ChromeUse MCP gateway server: failed to bind HTTP ${baseUrl}. ${message}\n`
-      );
+      logger(`mode=SERVER event=startup_failure base_url=${baseUrl} error=${message}`);
       throw new Error(
         `Unable to start ChromeUse MCP gateway server: failed to bind HTTP ${baseUrl}. ${message}`
       );
@@ -157,17 +163,13 @@ export async function startGateway(
       queuedTransport.disconnect();
       await mcpServer?.close();
       const message = errorMessage(error);
-      stderr.write(
-        `Unable to start ChromeUse MCP gateway server: HTTP ${baseUrl} was bound, but WebSocket bridge startup failed; HTTP listener closed. ${message}\n`
-      );
+      logger(`mode=SERVER event=startup_failure base_url=${baseUrl} error=${message}`);
       throw new Error(
         `Unable to start ChromeUse MCP gateway server: HTTP ${baseUrl} was bound, but WebSocket bridge startup failed; HTTP listener closed. ${message}`
       );
     }
 
-    stderr.write(
-      `ChromeUse MCP gateway started (server, http://${config.gatewayHost}:${config.gatewayPort})\n`
-    );
+    logger(formatStartupLog("SERVER", config, baseUrl, env));
 
     return {
       mode: config.mode,
@@ -183,7 +185,7 @@ export async function startGateway(
   const mcpServer = await createMcp();
   await mcpServer.connect(createStdio());
 
-  stderr.write("ChromeUse MCP gateway started (stdio)\n");
+  logger(`mode=STDIO event=startup pid=${process.pid} client_id=${config.clientId}`);
 
   return {
     mode: config.mode,
@@ -251,6 +253,29 @@ function parsePort(value: string | undefined): number | undefined {
 
 function generateClientId(): string {
   return `chromeuse-gateway-${process.pid}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function createStderrLogger(stderr: Pick<NodeJS.WriteStream, "write">): (message: string) => void {
+  return (message: string) => {
+    stderr.write(message.endsWith("\n") ? message : `${message}\n`);
+  };
+}
+
+function formatStartupLog(
+  mode: "SERVER" | "PROXY",
+  config: GatewayConfig,
+  baseUrl: string,
+  env: NodeJS.ProcessEnv
+): string {
+  return [
+    `mode=${mode}`,
+    "event=startup",
+    `pid=${process.pid}`,
+    `http_port=${config.gatewayPort}`,
+    `ws_port=${parsePort(env.CHROMEUSE_WS_PORT) ?? 8765}`,
+    `client_id=${config.clientId}`,
+    `base_url=${baseUrl}`,
+  ].join(" ");
 }
 
 function listen(server: HttpServer, port: number, host: string): Promise<void> {

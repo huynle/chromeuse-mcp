@@ -1,5 +1,5 @@
 import type { BrowserTransport, ToolRequestResult } from "@chromeuse/mcp-server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { RequestQueueTransport } from "./requestQueue.js";
 
 class Deferred<T> {
@@ -70,6 +70,29 @@ describe("RequestQueueTransport", () => {
       { tool: "second", args: { order: 2 }, timeoutMs: 2000 },
       { tool: "third", args: { order: 3 }, timeoutMs: 3000 },
     ]);
+  });
+
+  it("logs queue depth as active plus queued requests change", async () => {
+    const logger = vi.fn();
+    const underlying = new FakeBrowserTransport();
+    const queue = new RequestQueueTransport(underlying, { logger });
+
+    const first = queue.sendToolRequest("first", {});
+    const second = queue.sendToolRequest("second", {});
+
+    await Promise.resolve();
+    expect(logger).toHaveBeenCalledWith(expect.stringContaining("mode=SERVER event=queue_depth depth=1"));
+    expect(logger).toHaveBeenCalledWith(expect.stringContaining("mode=SERVER event=queue_depth depth=2"));
+
+    underlying.requests[0].resolve({ content: [{ type: "text", text: "one" }] });
+    await expect(first).resolves.toEqual({ content: [{ type: "text", text: "one" }] });
+    await Promise.resolve();
+    expect(logger).toHaveBeenCalledWith(expect.stringContaining("mode=SERVER event=queue_depth depth=1"));
+
+    underlying.requests[1].resolve({ content: [{ type: "text", text: "two" }] });
+    await expect(second).resolves.toEqual({ content: [{ type: "text", text: "two" }] });
+    await Promise.resolve();
+    expect(logger).toHaveBeenCalledWith(expect.stringContaining("mode=SERVER event=queue_depth depth=0"));
   });
 
   it("rejects cleanly when no extension is connected", async () => {

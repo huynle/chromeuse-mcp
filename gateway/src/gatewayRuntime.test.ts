@@ -121,9 +121,10 @@ describe("gateway runtime", () => {
       CHROMEUSE_CLIENT_ID: "runtime-client",
     };
 
+    const stderr = { write: vi.fn() };
     const runtime = await startGateway({
       env,
-      stderr: { write: vi.fn() },
+      stderr,
       createWebSocketBridge,
       createQueueTransport,
       createMcpServerImpl,
@@ -141,12 +142,20 @@ describe("gateway runtime", () => {
     expect(createGatewayServerImpl).toHaveBeenCalledWith({
       transport: expect.anything(),
       clientId: "runtime-client",
+      logger: expect.any(Function),
     });
     expect(mcpServer.connect).toHaveBeenCalledWith(stdioTransport);
     const serverTransport = createGatewayServerImpl.mock.calls[0]?.[0].transport;
     expect(serverTransport).not.toBe(queue);
     expect(serverTransport.connected).toBe(true);
     expect(httpServer.listen).toHaveBeenCalledWith(0, "127.0.0.1");
+    expect(stderr.write).toHaveBeenCalledWith(
+      expect.stringContaining("mode=SERVER event=startup")
+    );
+    expect(stderr.write).toHaveBeenCalledWith(expect.stringContaining("pid="));
+    expect(stderr.write).toHaveBeenCalledWith(expect.stringContaining("http_port=0"));
+    expect(stderr.write).toHaveBeenCalledWith(expect.stringContaining("ws_port=8765"));
+    expect(stderr.write).toHaveBeenCalledWith(expect.stringContaining("client_id=runtime-client"));
 
     await runtime.close();
     expect(httpServer.close).toHaveBeenCalledTimes(1);
@@ -166,10 +175,11 @@ describe("gateway runtime", () => {
     const createMcpServerImpl = vi.fn(async () => mcpServer);
     const createGatewayServerImpl = vi.fn(() => httpServer as never);
     const createHttpGatewayTransport = vi.fn(() => proxyTransport);
+    const stderr = { write: vi.fn() };
 
     const runtime = await startGateway({
       env: { CHROMEUSE_GATEWAY_MODE: "server", CHROMEUSE_HTTP_PORT: "8766" },
-      stderr: { write: vi.fn() },
+      stderr,
       createWebSocketBridge,
       createMcpServerImpl,
       createStdioTransport: () => stdioTransport,
@@ -180,9 +190,15 @@ describe("gateway runtime", () => {
     expect(runtime.mode).toBe("proxy");
     expect(createWebSocketBridge).not.toHaveBeenCalled();
     expect(proxyTransport.connect).toHaveBeenCalledTimes(1);
-    expect(createHttpGatewayTransport).toHaveBeenCalledWith("http://127.0.0.1:8766");
+    expect(createHttpGatewayTransport).toHaveBeenCalledWith(
+      "http://127.0.0.1:8766",
+      expect.objectContaining({ logger: expect.any(Function) })
+    );
     expect(createMcpServerImpl).toHaveBeenCalledWith(proxyTransport);
     expect(mcpServer.connect).toHaveBeenCalledWith(stdioTransport);
+    expect(stderr.write).toHaveBeenCalledWith(
+      expect.stringContaining("mode=PROXY event=startup")
+    );
 
     await runtime.close();
     expect(proxyTransport.disconnect).toHaveBeenCalledTimes(1);

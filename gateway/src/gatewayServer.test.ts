@@ -36,11 +36,14 @@ afterEach(async () => {
   );
 });
 
-async function startServer(transport = new FakeTransport()): Promise<{
+async function startServer(
+  transport = new FakeTransport(),
+  logger?: (message: string) => void
+): Promise<{
   readonly baseUrl: string;
   readonly transport: FakeTransport;
 }> {
-  const server = createGatewayServer({ transport, clientId: "test-client" });
+  const server = createGatewayServer({ transport, clientId: "test-client", logger });
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address() as AddressInfo;
@@ -92,6 +95,27 @@ describe("createGatewayServer", () => {
       { includeClosed: false },
       123
     );
+  });
+
+  it("logs SERVER request start and end without writing stdout", async () => {
+    const logger = vi.fn();
+    const stdoutWrite = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const { baseUrl } = await startServer(new FakeTransport(), logger);
+
+    const response = await fetch(`${baseUrl}/tool`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ tool: "tabs_context", args: {} }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(logger).toHaveBeenCalledWith(expect.stringContaining("mode=SERVER event=request_start"));
+    expect(logger).toHaveBeenCalledWith(
+      expect.stringContaining("mode=SERVER event=request_end status=200")
+    );
+    expect(logger).toHaveBeenCalledWith(expect.stringContaining("tool=tabs_context"));
+    expect(stdoutWrite).not.toHaveBeenCalled();
+    stdoutWrite.mockRestore();
   });
 
   it("accepts name and arguments aliases for POST /tool", async () => {

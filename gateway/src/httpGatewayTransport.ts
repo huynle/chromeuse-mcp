@@ -19,16 +19,19 @@ interface ToolGatewayResponse {
 
 export interface HttpGatewayTransportOptions {
   readonly fetch?: typeof globalThis.fetch;
+  readonly logger?: (message: string) => void;
 }
 
 export class HttpGatewayTransport implements BrowserTransport {
   private readonly baseUrl: string;
   private readonly fetch: typeof globalThis.fetch;
+  private readonly logger?: (message: string) => void;
   private _connected = false;
 
   constructor(baseUrl: string, options: HttpGatewayTransportOptions = {}) {
     this.baseUrl = baseUrl.replace(/\/+$/, "");
     this.fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+    this.logger = options.logger;
   }
 
   get connected(): boolean {
@@ -52,6 +55,7 @@ export class HttpGatewayTransport implements BrowserTransport {
       this._connected = true;
     } catch (error) {
       this._connected = false;
+      this.log(`mode=PROXY event=probe_failure base_url=${this.baseUrl} error=${errorMessage(error)}`);
       throw error;
     }
   }
@@ -67,12 +71,14 @@ export class HttpGatewayTransport implements BrowserTransport {
 
     const abortController = new AbortController();
     let didTimeout = false;
+    const start = Date.now();
     const timer = setTimeout(() => {
       didTimeout = true;
       abortController.abort();
     }, timeoutMs);
 
     let payload: ToolGatewayResponse;
+    this.log(`mode=PROXY event=request_start tool=${tool} base_url=${this.baseUrl}`);
     try {
       const response = await this.fetch(`${this.baseUrl}/tool`, {
         method: "POST",
@@ -85,11 +91,20 @@ export class HttpGatewayTransport implements BrowserTransport {
       }
 
       payload = (await response.json()) as ToolGatewayResponse;
+      this.log(
+        `mode=PROXY event=request_end status=${response.status} tool=${tool} duration_ms=${Date.now() - start}`
+      );
     } catch (error) {
       this._connected = false;
       if (didTimeout) {
+        this.log(
+          `mode=PROXY event=request_end status=timeout tool=${tool} duration_ms=${Date.now() - start}`
+        );
         throw new Error(`Tool request timed out after ${timeoutMs}ms: ${tool}`);
       }
+      this.log(
+        `mode=PROXY event=request_end status=error tool=${tool} duration_ms=${Date.now() - start} error=${errorMessage(error)}`
+      );
       throw error;
     } finally {
       clearTimeout(timer);
@@ -105,6 +120,14 @@ export class HttpGatewayTransport implements BrowserTransport {
   disconnect(): void {
     this._connected = false;
   }
+
+  private log(message: string): void {
+    this.logger?.(message);
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function isCompatibleHealth(health: HealthResponse): boolean {
