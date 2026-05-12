@@ -374,6 +374,139 @@ body {
   color: #fbbf24 !important;
 }
 
+.workspace-tree-root {
+  margin-top: 12px;
+  border-top: 1px solid #243044;
+  padding-top: 10px;
+}
+
+.workspace-tree-message,
+.workspace-tree-summary,
+.workspace-tree-truncated,
+.workspace-tree-error,
+.workspace-tree-loading {
+  color: #9ca3af;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.workspace-tree-message {
+  padding: 9px 10px;
+  background: #0f172a;
+  border: 1px solid #243044;
+  border-radius: 6px;
+}
+
+.workspace-tree-action {
+  margin-top: 8px;
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: #2563eb;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.workspace-tree-action:hover {
+  background: #1d4ed8;
+}
+
+.workspace-tree-summary {
+  margin-bottom: 8px;
+  color: #8888aa;
+}
+
+.workspace-file-tree {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.workspace-tree-entry {
+  min-width: 0;
+}
+
+.workspace-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  padding: 5px 8px 5px calc(8px + (var(--workspace-tree-depth, 0) * 14px));
+  color: #d1d5db;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.workspace-tree-row:hover:not(:disabled) {
+  background: #16213e;
+  border-color: #2a2a4a;
+}
+
+.workspace-tree-row:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.workspace-tree-row.selected {
+  color: #ffffff;
+  background: #1d4ed8;
+  border-color: #3b82f6;
+}
+
+.workspace-tree-disclosure {
+  width: 12px;
+  flex-shrink: 0;
+  color: #93c5fd;
+  font-size: 10px;
+}
+
+.workspace-tree-icon {
+  flex-shrink: 0;
+  width: 16px;
+  font-size: 12px;
+}
+
+.workspace-tree-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-tree-loading,
+.workspace-tree-error {
+  margin: 3px 0 4px 28px;
+  padding: 6px 8px;
+  border-radius: 5px;
+}
+
+.workspace-tree-loading {
+  color: #c7d2fe;
+  background: #1e1b4b;
+}
+
+.workspace-tree-error {
+  color: #fecaca;
+  background: #450a0a;
+  border: 1px solid #7f1d1d;
+}
+
+.workspace-tree-truncated {
+  margin-top: 8px;
+  padding: 7px 8px;
+  color: #fef3c7;
+  background: #451a03;
+  border: 1px solid #92400e;
+  border-radius: 6px;
+}
+
 /* ─── History Section ────────────────────────────────────────────────────── */
 
 #history-section {

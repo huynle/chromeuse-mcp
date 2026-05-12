@@ -18,10 +18,16 @@ import {
   renderWorkspaceMarkdownFile,
   type WorkspaceMarkdownFile,
 } from "./markdownPreview.js";
-import { loadWorkspaceSelection, pickWorkspaceFolder } from "./workspacePanel.js";
-import { queryWorkspacePermission } from "./workspacePermissions.js";
+import { pickWorkspaceFolder } from "./workspacePanel.js";
+import { queryWorkspacePermission, requestWorkspacePermission, type WorkspacePermissionRecovery } from "./workspacePermissions.js";
 import { loadSelectedDirectoryHandle, saveSelectedDirectoryHandle } from "./workspaceStorage.js";
-import type { WorkspaceFolderSelection } from "./workspaceTypes.js";
+import { readWorkspaceDirectory, type WorkspaceTreeDirectory, type WorkspaceTreeNode } from "./workspaceTree.js";
+import {
+  createSelectedWorkspaceFile,
+  describeWorkspaceTreeState,
+  toWorkspaceTreeItems,
+} from "./workspaceTreeView.js";
+import type { WorkspaceFolderSelection, WorkspaceSelectedFile } from "./workspaceTypes.js";
 
 // ---------------------------------------------------------------------------
 // Types (mirrored from extension types to avoid import issues with esbuild)
@@ -86,6 +92,7 @@ const workspaceMetadata = document.getElementById("workspace-metadata") as HTMLD
 const workspaceFolderName = document.getElementById("workspace-folder-name") as HTMLElement;
 const workspaceSelectedAt = document.getElementById("workspace-selected-at") as HTMLElement;
 const workspacePermission = document.getElementById("workspace-permission") as HTMLElement;
+const workspaceSection = document.getElementById("workspace-section") as HTMLElement;
 
 // ---------------------------------------------------------------------------
 // State
@@ -96,6 +103,29 @@ const entryElements = new Map<number, HTMLDivElement>();
 
 let currentStatus: ConnectionStatus = "disconnected";
 let markdownMode: "preview" | "source" = "preview";
+let currentWorkspaceHandle: FileSystemDirectoryHandle | null = null;
+let currentWorkspacePermission: WorkspacePermissionRecovery | null = null;
+let selectedWorkspaceFile: WorkspaceSelectedFile | null = null;
+
+const WORKSPACE_TREE_OPTIONS = {
+  maxDepth: 6,
+  maxEntriesPerDirectory: 100,
+} as const;
+
+interface LoadedWorkspaceDirectory {
+  readonly handle: FileSystemDirectoryHandle;
+  readonly directory: WorkspaceTreeDirectory;
+  expanded: boolean;
+  loading: boolean;
+  error: string | null;
+}
+
+const loadedWorkspaceDirectories = new Map<string, LoadedWorkspaceDirectory>();
+
+const workspaceTreeRoot = document.createElement("div");
+workspaceTreeRoot.id = "workspace-tree-root";
+workspaceTreeRoot.className = "workspace-tree-root hidden";
+workspaceSection.appendChild(workspaceTreeRoot);
 
 // ---------------------------------------------------------------------------
 // Rendering
@@ -225,7 +255,14 @@ function renderWorkspaceSelection(selectedFolder: WorkspaceFolderSelection | nul
   workspaceEmpty.classList.toggle("hidden", selectedFolder !== null);
   workspaceMetadata.classList.toggle("hidden", selectedFolder === null);
 
-  if (!selectedFolder) return;
+  if (!selectedFolder) {
+    currentWorkspaceHandle = null;
+    currentWorkspacePermission = null;
+    selectedWorkspaceFile = null;
+    loadedWorkspaceDirectories.clear();
+    renderWorkspaceTree();
+    return;
+  }
 
   workspaceFolderName.textContent = selectedFolder.metadata.name;
   workspaceSelectedAt.textContent = formatWorkspaceSelectedAt(selectedFolder.metadata.lastSelectedAt);
@@ -235,6 +272,266 @@ function renderWorkspaceSelection(selectedFolder: WorkspaceFolderSelection | nul
 
 function renderWorkspaceError(error: string): void {
   renderWorkspaceSelection(null, error);
+}
+
+function renderWorkspaceTreeMessage(message: string, action?: { readonly label: string; readonly onClick: () => void }): void {
+  workspaceTreeRoot.classList.remove("hidden");
+  workspaceTreeRoot.replaceChildren();
+
+  const messageEl = document.createElement("div");
+  messageEl.className = "workspace-tree-message";
+  messageEl.textContent = message;
+  workspaceTreeRoot.appendChild(messageEl);
+
+  if (action) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "workspace-tree-action";
+    button.textContent = action.label;
+    button.addEventListener("click", action.onClick);
+    workspaceTreeRoot.appendChild(button);
+  }
+}
+
+function renderWorkspaceTree(): void {
+  if (!currentWorkspaceHandle) {
+    workspaceTreeRoot.classList.add("hidden");
+    workspaceTreeRoot.replaceChildren();
+    return;
+  }
+
+  if (currentWorkspacePermission && currentWorkspacePermission.action !== "none") {
+    renderWorkspaceTreeMessage(
+      describeWorkspaceTreeState({
+        directory: null,
+        permission: currentWorkspacePermission,
+        selectedFile: selectedWorkspaceFile,
+        isLoading: false,
+        error: null,
+      }),
+      currentWorkspacePermission.canRequest
+        ? { label: "Grant Access", onClick: restoreWorkspacePermissionFromGesture }
+        : { label: "Reselect Folder", onClick: () => workspacePickBtn.click() },
+    );
+    return;
+  }
+
+  const rootDirectory = loadedWorkspaceDirectories.get("/");
+  if (!rootDirectory) {
+    renderWorkspaceTreeMessage("Loading workspace tree...");
+    return;
+  }
+
+  workspaceTreeRoot.classList.remove("hidden");
+  workspaceTreeRoot.replaceChildren();
+
+  const summary = document.createElement("div");
+  summary.className = "workspace-tree-summary";
+  summary.textContent = describeWorkspaceTreeState({
+    directory: rootDirectory.directory,
+    permission: currentWorkspacePermission,
+    selectedFile: selectedWorkspaceFile,
+    isLoading: rootDirectory.loading,
+    error: rootDirectory.error,
+  });
+  workspaceTreeRoot.appendChild(summary);
+
+  const tree = document.createElement("ul");
+  tree.className = "workspace-file-tree";
+  tree.setAttribute("role", "tree");
+  appendDirectoryEntries(tree, rootDirectory.directory);
+  workspaceTreeRoot.appendChild(tree);
+
+  if (rootDirectory.directory.truncated) {
+    const truncated = document.createElement("div");
+    truncated.className = "workspace-tree-truncated";
+    truncated.textContent = `Showing first ${WORKSPACE_TREE_OPTIONS.maxEntriesPerDirectory} entries. Narrow the folder or use a deeper selection to browse more.`;
+    workspaceTreeRoot.appendChild(truncated);
+  }
+}
+
+function appendDirectoryEntries(parent: HTMLElement, directory: WorkspaceTreeDirectory): void {
+  const items = toWorkspaceTreeItems(directory, selectedWorkspaceFile?.path ?? null);
+  for (const item of items) {
+    const node = directory.entries.find((entry) => entry.path === item.path);
+    if (!node) continue;
+
+    const entry = document.createElement("li");
+    entry.className = `workspace-tree-entry workspace-tree-entry-${item.kind}`;
+    entry.setAttribute("role", "treeitem");
+    entry.setAttribute("aria-selected", String(item.selected));
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "workspace-tree-row";
+    button.style.setProperty("--workspace-tree-depth", String(Math.max(0, item.depth - 1)));
+    button.dataset.path = item.path;
+    button.disabled = !item.selectable && !item.expandable;
+
+    const disclosure = document.createElement("span");
+    disclosure.className = "workspace-tree-disclosure";
+    const loadedDirectory = loadedWorkspaceDirectories.get(item.path);
+    disclosure.textContent = item.kind === "directory" ? (loadedDirectory?.expanded ? "v" : ">") : "";
+
+    const icon = document.createElement("span");
+    icon.className = "workspace-tree-icon";
+    icon.textContent = item.kind === "directory" ? "[D]" : "[F]";
+
+    const name = document.createElement("span");
+    name.className = "workspace-tree-name";
+    name.textContent = item.name;
+
+    if (item.selected) button.classList.add("selected");
+    button.append(disclosure, icon, name);
+    button.addEventListener("click", () => handleWorkspaceTreeNodeClick(node));
+    entry.appendChild(button);
+
+    if (loadedDirectory?.loading) {
+      const loading = document.createElement("div");
+      loading.className = "workspace-tree-loading";
+      loading.textContent = "Loading...";
+      entry.appendChild(loading);
+    }
+
+    if (loadedDirectory?.error) {
+      const error = document.createElement("div");
+      error.className = "workspace-tree-error";
+      error.textContent = loadedDirectory.error;
+      entry.appendChild(error);
+    }
+
+    if (loadedDirectory?.expanded) {
+      const childList = document.createElement("ul");
+      childList.className = "workspace-file-tree";
+      childList.setAttribute("role", "group");
+      appendDirectoryEntries(childList, loadedDirectory.directory);
+      entry.appendChild(childList);
+    }
+
+    parent.appendChild(entry);
+  }
+}
+
+async function handleWorkspaceTreeNodeClick(node: WorkspaceTreeNode): Promise<void> {
+  if (node.kind === "file") {
+    selectedWorkspaceFile = createSelectedWorkspaceFile(node);
+    renderWorkspaceTree();
+    window.dispatchEvent(new CustomEvent("chromeuse:workspace-file-selected", { detail: selectedWorkspaceFile }));
+    return;
+  }
+
+  const existing = loadedWorkspaceDirectories.get(node.path);
+  if (existing) {
+    existing.expanded = !existing.expanded;
+    renderWorkspaceTree();
+    return;
+  }
+
+  await loadWorkspaceDirectory(node.path, node.depth, true);
+}
+
+async function resolveWorkspaceDirectoryHandle(path: string): Promise<FileSystemDirectoryHandle | null> {
+  if (!currentWorkspaceHandle) return null;
+  if (path === "/") return currentWorkspaceHandle;
+
+  let handle = currentWorkspaceHandle;
+  for (const segment of path.split("/").filter(Boolean)) {
+    handle = await handle.getDirectoryHandle(segment);
+  }
+  return handle;
+}
+
+async function loadWorkspaceDirectory(path: string, depth: number, expanded: boolean): Promise<void> {
+  const placeholder = loadedWorkspaceDirectories.get(path);
+  if (placeholder) {
+    placeholder.loading = true;
+    placeholder.error = null;
+  }
+  renderWorkspaceTree();
+
+  try {
+    const handle = await resolveWorkspaceDirectoryHandle(path);
+    if (!handle) {
+      renderWorkspaceTreeMessage("Workspace folder is unavailable. Reselect the folder to continue.", {
+        label: "Reselect Folder",
+        onClick: () => workspacePickBtn.click(),
+      });
+      return;
+    }
+
+    const result = await readWorkspaceDirectory(handle, path, depth, WORKSPACE_TREE_OPTIONS);
+    if (!result.ok) {
+      loadedWorkspaceDirectories.set(path, {
+        handle,
+        directory: { path, depth, entries: [], truncated: false },
+        expanded,
+        loading: false,
+        error: result.error,
+      });
+      renderWorkspaceTree();
+      return;
+    }
+
+    loadedWorkspaceDirectories.set(path, {
+      handle,
+      directory: result.value,
+      expanded,
+      loading: false,
+      error: null,
+    });
+    renderWorkspaceTree();
+  } catch (error) {
+    loadedWorkspaceDirectories.set(path, {
+      handle: currentWorkspaceHandle as FileSystemDirectoryHandle,
+      directory: { path, depth, entries: [], truncated: false },
+      expanded,
+      loading: false,
+      error: error instanceof Error ? error.message : "Unable to load workspace directory.",
+    });
+    renderWorkspaceTree();
+  }
+}
+
+async function loadWorkspaceTreeForHandle(handle: FileSystemDirectoryHandle): Promise<void> {
+  currentWorkspaceHandle = handle;
+  loadedWorkspaceDirectories.clear();
+  selectedWorkspaceFile = null;
+  renderWorkspaceTreeMessage("Loading workspace tree...");
+
+  const permission = await queryWorkspacePermission(handle);
+  if (!permission.ok) {
+    currentWorkspacePermission = null;
+    renderWorkspaceTreeMessage(permission.error, { label: "Reselect Folder", onClick: () => workspacePickBtn.click() });
+    return;
+  }
+
+  currentWorkspacePermission = permission.value;
+  if (permission.value.action !== "none") {
+    renderWorkspaceTree();
+    return;
+  }
+
+  await loadWorkspaceDirectory("/", 0, true);
+}
+
+async function restoreWorkspacePermissionFromGesture(): Promise<void> {
+  if (!currentWorkspaceHandle) return;
+  renderWorkspaceTreeMessage("Requesting workspace access…");
+  const permission = await requestWorkspacePermission(currentWorkspaceHandle);
+  if (!permission.ok) {
+    renderWorkspaceTreeMessage(permission.error, { label: "Reselect Folder", onClick: () => workspacePickBtn.click() });
+    return;
+  }
+  currentWorkspacePermission = permission.value;
+  workspacePermission.textContent = permission.value.state;
+  workspacePermission.className = `workspace-permission-${permission.value.state}`;
+  workspaceMessage.textContent = permission.value.message ?? "";
+  workspaceMessage.classList.toggle("hidden", !permission.value.message);
+  if (permission.value.action !== "none") {
+    renderWorkspaceTree();
+    return;
+  }
+  await loadWorkspaceDirectory("/", 0, true);
 }
 
 function renderWorkspaceMarkdownPreview(file: WorkspaceMarkdownFile): void {
@@ -343,16 +640,30 @@ async function restoreWorkspaceSelection(): Promise<void> {
     return;
   }
 
-  const result = await loadWorkspaceSelection({
-    loadSelectedDirectoryHandle,
-    queryWorkspacePermission,
-  });
-
-  if (result.ok) {
-    renderWorkspaceSelection(result.value.selectedFolder, result.value.error);
-  } else {
-    renderWorkspaceError(result.error);
+  const loaded = await loadSelectedDirectoryHandle();
+  if (!loaded.ok) {
+    renderWorkspaceError(loaded.error);
+    return;
   }
+
+  if (!loaded.value) {
+    renderWorkspaceSelection(null, null);
+    return;
+  }
+
+  const permission = await queryWorkspacePermission(loaded.value.handle);
+  if (!permission.ok) {
+    renderWorkspaceError(permission.error);
+    return;
+  }
+
+  currentWorkspaceHandle = loaded.value.handle;
+  currentWorkspacePermission = permission.value;
+  renderWorkspaceSelection(
+    { metadata: loaded.value.metadata, permission: permission.value.state },
+    permission.value.message ?? null,
+  );
+  await loadWorkspaceTreeForHandle(loaded.value.handle);
 }
 
 /** Listen for real-time broadcast updates from the service worker */
@@ -433,15 +744,24 @@ workspacePickBtn.addEventListener("click", async () => {
   workspaceMessage.classList.remove("hidden");
 
   try {
+    let pickedHandle: FileSystemDirectoryHandle | null = null;
+    const showDirectoryPicker = (window as Window & { showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle> })
+      .showDirectoryPicker;
     const result = await pickWorkspaceFolder({
-      showDirectoryPicker: (window as Window & { showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle> })
-        .showDirectoryPicker,
+      showDirectoryPicker: showDirectoryPicker
+        ? async () => {
+            const handle = await showDirectoryPicker();
+            pickedHandle = handle;
+            return handle;
+          }
+        : undefined,
       saveSelectedDirectoryHandle,
       queryWorkspacePermission,
     });
 
     if (result.ok) {
       renderWorkspaceSelection(result.value.selectedFolder, result.value.error);
+      if (pickedHandle) await loadWorkspaceTreeForHandle(pickedHandle);
     } else {
       renderWorkspaceError(result.error);
     }
