@@ -6,6 +6,7 @@
 #   2. native-host (tsc, depends on shared)
 #   3. extension (typecheck + esbuild, depends on shared)
 #   4. mcp-server (tsc, depends on shared)
+#   5. gateway (tsc, depends on mcp-server)
 #
 # Usage:
 #   ./scripts/build.sh
@@ -38,6 +39,11 @@ echo "--- Building mcp-server ---"
 (cd "$PROJECT_ROOT/mcp-server" && npm run build)
 echo ""
 
+# ── 5. OpenCode Gateway ────────────────────────────────────────────────────
+echo "--- Building gateway ---"
+(cd "$PROJECT_ROOT/gateway" && npm run build)
+echo ""
+
 echo "=== Build complete ==="
 echo ""
 echo "Outputs:"
@@ -45,6 +51,7 @@ echo "  shared:      shared/dist/"
 echo "  native-host: native-host/dist/"
 echo "  extension:   extension/dist/"
 echo "  mcp-server:  mcp-server/dist/"
+echo "  gateway:     gateway/dist/"
 echo ""
 echo "To load the extension in Chrome:"
 echo "  1. Open chrome://extensions"

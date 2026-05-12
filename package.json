@@ -24,7 +24,8 @@
     "shared",
     "extension",
     "native-host",
-    "mcp-server"
+    "mcp-server",
+    "gateway"
   ],
   "scripts": {
     "build": "npm run build --workspaces",
