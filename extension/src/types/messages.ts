@@ -72,6 +72,8 @@ export interface ToolExecutionEntry {
 /** Messages FROM the side panel to the service worker */
 export type SidePanelRequest =
   | { readonly action: "sidepanel_get_state" }
+  | { readonly action: "sidepanel_connect" }
+  | { readonly action: "sidepanel_disconnect" }
   | { readonly action: "sidepanel_stop_automation" };
 
 /** Full state snapshot sent to the side panel */

@@ -14,6 +14,7 @@
  */
 
 import { nativeMessaging } from "./nativeMessaging.js";
+import { webSocketConnection } from "./webSocketConnection.js";
 import { messageRouter } from "./messageRouter.js";
 import { updateBadge } from "./badge.js";
 import { cdpManager } from "./cdp.js";
@@ -47,6 +48,7 @@ cdpManager.initialize().catch((err) => {
 
 // Forward native host connection status changes to side panel
 nativeMessaging.onConnectionStatusChange(setConnectionStatus);
+webSocketConnection.onConnectionStatusChange(setConnectionStatus);
 
 nativeMessaging.connect();
 

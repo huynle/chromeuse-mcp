@@ -15,6 +15,8 @@ import type {
   SidePanelBroadcast,
   ToolExecutionEntry,
 } from "../types/messages.js";
+import { nativeMessaging } from "./nativeMessaging.js";
+import { webSocketConnection } from "./webSocketConnection.js";
 
 /** Maximum number of tool execution entries to keep in memory */
 const MAX_HISTORY = 200;
@@ -117,15 +119,26 @@ export function initSidePanelHandler(): void {
           sendResponse(getSidePanelState());
           return false; // synchronous response
 
+        case "sidepanel_connect":
+          webSocketConnection.connect();
+          sendResponse({ success: true });
+          return false;
+
+        case "sidepanel_disconnect":
+          webSocketConnection.disconnect();
+          sendResponse({ success: true });
+          return false;
+
         case "sidepanel_stop_automation":
         case "stop_automation":
-          // Disconnect native messaging to stop all automation
-          // Import is async in ES modules, so handle dynamically
-          import("./nativeMessaging.js").then(({ nativeMessaging }) => {
+          if (webSocketConnection.status !== "disconnected") {
+            webSocketConnection.disconnect();
+          } else {
+            // Preserve native-host stop behavior while allowing WebSocket sessions
+            // to stop without forcing a native transport reconnect.
             nativeMessaging.disconnect();
-            // Immediately reconnect so the extension is ready for next session
             setTimeout(() => nativeMessaging.connect(), 500);
-          });
+          }
           sendResponse({ success: true });
           return false;
 
