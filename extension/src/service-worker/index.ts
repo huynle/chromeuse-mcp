@@ -46,7 +46,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   const url = typeof message.url === "string" ? message.url : "";
   fetch(url)
     .then(async (response) => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok && !isFileUrl(url)) throw new Error(`HTTP ${response.status}`);
       sendResponse({ ok: true, html: await response.text() });
     })
     .catch((error) => {
@@ -55,6 +55,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   return true;
 });
+
+function isFileUrl(url: string): boolean {
+  try {
+    return new URL(url).protocol === "file:";
+  } catch {
+    return false;
+  }
+}
 
 // --- CDP manager ---
 

@@ -32,6 +32,8 @@ const PLAIN_DOCUMENT_CONTENT_TYPES = new Set([
   "application/octet-stream",
 ]);
 
+let hideDotFiles = true;
+
 export function shouldRenderMarkdownDocument(url: string, contentType: string): boolean {
   const normalizedContentType = contentType.split(";", 1)[0].trim().toLowerCase();
   if (MARKDOWN_CONTENT_TYPES.has(normalizedContentType)) return true;
@@ -100,8 +102,34 @@ export function parseDirectoryListing(html: string, directoryUrl: string): Markd
   return sortEntries(parseChromeDirectoryListing(html, currentHref));
 }
 
+export function addParentDirectoryEntry(
+  entries: readonly MarkdownFileTreeEntry[],
+  directoryUrl: string,
+): MarkdownFileTreeEntry[] {
+  const parentUrl = getParentDirectoryUrl(directoryUrl);
+  if (!parentUrl || parentUrl === directoryUrl) return [...entries];
+  return [{ name: "..", url: parentUrl, type: "directory" }, ...entries];
+}
+
+export function buildFileTreeEntries(
+  html: string,
+  directoryUrl: string,
+  includeParentEntry: boolean,
+): MarkdownFileTreeEntry[] {
+  const entries = parseDirectoryListing(html, directoryUrl);
+  return includeParentEntry ? addParentDirectoryEntry(entries, directoryUrl) : entries;
+}
+
 function isMarkdownFileUrl(url: string): boolean {
   return MARKDOWN_DOCUMENT_RE.test(url);
+}
+
+function isFileUrl(url: string): boolean {
+  try {
+    return new URL(url).protocol === "file:";
+  } catch {
+    return false;
+  }
 }
 
 function parseAnchorDirectoryListing(html: string, currentHref: string): MarkdownFileTreeEntry[] {
@@ -424,6 +452,45 @@ function createStyle(doc: Document): HTMLStyleElement {
       color: #25364d;
     }
 
+    body.chromeuse-theme-dark.chromeuse-markdown-document {
+      background: #101827;
+      color: #dbe4f0;
+    }
+
+    body.chromeuse-theme-dark .chromeuse-markdown-sidebar {
+      border-right-color: #253246;
+      background: #111c2d;
+    }
+
+    body.chromeuse-theme-dark .chromeuse-markdown-content,
+    body.chromeuse-theme-dark .chromeuse-markdown-content h1,
+    body.chromeuse-theme-dark .chromeuse-markdown-content h2,
+    body.chromeuse-theme-dark .chromeuse-markdown-content h3,
+    body.chromeuse-theme-dark .chromeuse-markdown-sidebar-title,
+    body.chromeuse-theme-dark .chromeuse-markdown-file-tree button,
+    body.chromeuse-theme-dark .chromeuse-markdown-file-tree a,
+    body.chromeuse-theme-dark .chromeuse-markdown-toc-list a {
+      color: #dbe4f0;
+    }
+
+    body.chromeuse-theme-dark .chromeuse-markdown-side-switch {
+      border-color: #253246;
+      background: #182338;
+    }
+
+    body.chromeuse-theme-dark .chromeuse-markdown-side-switch button.active,
+    body.chromeuse-theme-dark .chromeuse-markdown-file-tree li.active > a,
+    body.chromeuse-theme-dark .chromeuse-markdown-icon-button,
+    body.chromeuse-theme-dark .chromeuse-markdown-options-menu {
+      background: #1c2940;
+    }
+
+    body.chromeuse-theme-dark .chromeuse-markdown-content code,
+    body.chromeuse-theme-dark .chromeuse-markdown-content pre {
+      background: #182338;
+      color: #dbe4f0;
+    }
+
     .chromeuse-markdown-shell {
       display: block;
       width: 100%;
@@ -434,10 +501,10 @@ function createStyle(doc: Document): HTMLStyleElement {
     .chromeuse-markdown-sidebar {
       position: fixed;
       inset: 0 auto 0 0;
-      width: 390px;
+      width: 340px;
       max-height: none;
       overflow: auto;
-      padding: 46px 15px 32px;
+      padding: 34px 12px 28px;
       border: 0;
       border-right: 1px solid #e3e7ee;
       border-radius: 0;
@@ -449,21 +516,21 @@ function createStyle(doc: Document): HTMLStyleElement {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 4px;
-      margin: 0 9px 30px;
-      padding: 7px;
+      margin: 0 8px 24px;
+      padding: 6px;
       border: 1px solid #e7eaf0;
-      border-radius: 24px;
+      border-radius: 20px;
       background: #f0f1f3;
     }
 
     .chromeuse-markdown-side-switch button {
-      height: 50px;
+      height: 42px;
       border: 0;
-      border-radius: 16px;
+      border-radius: 14px;
       color: #4b5563;
       background: transparent;
       font: inherit;
-      font-size: 18px;
+      font-size: 15px;
       font-weight: 800;
       letter-spacing: 0.06em;
       text-transform: uppercase;
@@ -481,9 +548,9 @@ function createStyle(doc: Document): HTMLStyleElement {
     }
 
     .chromeuse-markdown-sidebar-title {
-      margin: 0 15px 24px;
+      margin: 0 13px 18px;
       color: #4b5563;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 800;
       letter-spacing: 0.22em;
       text-transform: uppercase;
@@ -497,8 +564,8 @@ function createStyle(doc: Document): HTMLStyleElement {
     }
 
     .chromeuse-markdown-file-tree .chromeuse-markdown-file-tree {
-      margin-left: 24px;
-      padding-left: 12px;
+      margin-left: 18px;
+      padding-left: 10px;
       border-left: 1px solid #e5e7eb;
     }
 
@@ -507,17 +574,17 @@ function createStyle(doc: Document): HTMLStyleElement {
     .chromeuse-markdown-toc-list a {
       display: flex;
       width: 100%;
-      min-height: 52px;
+      min-height: 42px;
       align-items: center;
-      gap: 13px;
+      gap: 10px;
       box-sizing: border-box;
       border: 0;
-      border-radius: 13px;
-      padding: 8px 16px;
+      border-radius: 11px;
+      padding: 6px 13px;
       color: #4b5563;
       background: transparent;
       font: inherit;
-      font-size: 21px;
+      font-size: 17px;
       line-height: 1.25;
       text-align: left;
       text-decoration: none;
@@ -547,11 +614,11 @@ function createStyle(doc: Document): HTMLStyleElement {
     .chromeuse-markdown-icon-folder,
     .chromeuse-markdown-icon-file,
     .chromeuse-markdown-icon-image {
-      flex: 0 0 22px;
-      width: 22px;
-      height: 22px;
+      flex: 0 0 18px;
+      width: 18px;
+      height: 18px;
       color: #9aa1aa;
-      font-size: 18px;
+      font-size: 15px;
       font-weight: 800;
       text-align: center;
     }
@@ -570,15 +637,15 @@ function createStyle(doc: Document): HTMLStyleElement {
     }
 
     .chromeuse-markdown-file-tree-message {
-      padding: 0 16px;
+      padding: 0 13px;
       color: #8b949e;
-      font-size: 16px;
+      font-size: 14px;
     }
 
     .chromeuse-markdown-main {
       min-width: 0;
-      margin-left: 390px;
-      padding: 86px 78px 96px;
+      margin-left: 340px;
+      padding: 68px 62px 80px;
     }
 
     .chromeuse-markdown-content {
@@ -590,7 +657,7 @@ function createStyle(doc: Document): HTMLStyleElement {
       background: transparent;
       box-shadow: none;
       color: #25364d;
-      font-size: 26px;
+      font-size: 21px;
       line-height: 1.6;
     }
 
@@ -599,40 +666,40 @@ function createStyle(doc: Document): HTMLStyleElement {
     }
 
     .chromeuse-markdown-content h1 {
-      margin: 0 0 56px;
+      margin: 0 0 44px;
       color: #28384f;
-      font-size: 44px;
+      font-size: 36px;
       line-height: 1.2;
       text-align: center;
     }
 
     .chromeuse-markdown-content h2 {
-      margin: 64px 0 28px;
-      padding-bottom: 24px;
+      margin: 52px 0 22px;
+      padding-bottom: 18px;
       border-bottom: 1px solid #cbd5e1;
       color: #28384f;
-      font-size: 34px;
+      font-size: 28px;
       line-height: 1.2;
     }
 
     .chromeuse-markdown-content h3 {
-      margin: 38px 0 16px;
+      margin: 30px 0 13px;
       color: #28384f;
-      font-size: 28px;
+      font-size: 23px;
     }
 
     .chromeuse-markdown-content p {
-      margin: 0 0 28px;
+      margin: 0 0 22px;
     }
 
     .chromeuse-markdown-content ul,
     .chromeuse-markdown-content ol {
-      margin: 0 0 34px 34px;
-      padding-left: 22px;
+      margin: 0 0 28px 28px;
+      padding-left: 18px;
     }
 
     .chromeuse-markdown-content li {
-      margin: 12px 0;
+      margin: 9px 0;
     }
 
     .chromeuse-markdown-content a,
@@ -650,22 +717,22 @@ function createStyle(doc: Document): HTMLStyleElement {
     .chromeuse-markdown-content pre {
       position: relative;
       overflow: auto;
-      margin: 34px 0;
-      padding: 24px;
+      margin: 28px 0;
+      padding: 20px;
       border-radius: 8px;
       background: #f3f6fb;
       color: #1f2937;
-      font-size: 19px;
+      font-size: 16px;
     }
 
     .chromeuse-markdown-content pre::after {
       content: "text";
       position: absolute;
-      top: 14px;
-      right: 18px;
+      top: 12px;
+      right: 15px;
       color: #9ca3af;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 18px;
+      font-size: 15px;
     }
 
     .chromeuse-markdown-content pre code {
@@ -678,35 +745,144 @@ function createStyle(doc: Document): HTMLStyleElement {
     .chromeuse-markdown-top-actions {
       position: fixed;
       z-index: 20;
-      top: 42px;
+      top: 32px;
       display: flex;
       align-items: center;
-      gap: 18px;
+      gap: 10px;
     }
 
     .chromeuse-markdown-top-left {
-      left: 428px;
+      left: 372px;
     }
 
     .chromeuse-markdown-top-actions {
-      right: 50px;
+      right: 40px;
+    }
+
+    .chromeuse-markdown-top-actions.open .chromeuse-markdown-options-menu {
+      display: block;
     }
 
     .chromeuse-markdown-icon-button {
-      border: 0;
-      background: transparent;
+      min-width: 34px;
+      height: 34px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.78);
       color: #b8bec6;
       font: inherit;
-      font-size: 31px;
+      font-size: 19px;
       font-weight: 800;
       line-height: 1;
-      cursor: default;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .chromeuse-markdown-icon-button:hover {
+      color: #5b7fdd;
+      border-color: #e3e7ee;
+      background: #ffffff;
+    }
+
+    .chromeuse-markdown-options-menu {
+      position: absolute;
+      top: 44px;
+      right: 0;
+      display: none;
+      width: 240px;
+      padding: 14px;
+      border: 1px solid #e3e7ee;
+      border-radius: 16px;
+      background: #ffffff;
+      box-shadow: 0 18px 50px rgba(15, 23, 42, 0.14);
+      color: #4b5563;
+      font-size: 13px;
+    }
+
+    .chromeuse-markdown-options-title {
+      margin-bottom: 12px;
+      color: #25364d;
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .chromeuse-markdown-options-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .chromeuse-markdown-options-row strong,
+    .chromeuse-markdown-options-label {
+      display: block;
+      margin-bottom: 4px;
+      color: #25364d;
+      font-weight: 750;
+    }
+
+    .chromeuse-markdown-options-row small {
+      display: block;
+      color: #7b8492;
+      line-height: 1.35;
+    }
+
+    .chromeuse-markdown-options-theme {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .chromeuse-markdown-options-theme button {
+      min-height: 30px;
+      border: 1px solid #e3e7ee;
+      border-radius: 9px;
+      background: #f8fafc;
+      color: #4b5563;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .chromeuse-markdown-options-theme button.active {
+      border-color: #5b7fdd;
+      color: #5b7fdd;
+      background: #eef2ff;
+    }
+
+    .chromeuse-markdown-raw-view {
+      display: none;
+      box-sizing: border-box;
+      width: min(1120px, calc(100vw - 64px));
+      min-height: calc(100vh - 96px);
+      margin: 48px auto;
+      padding: 24px;
+      border: 1px solid #e3e7ee;
+      border-radius: 14px;
+      background: #f8fafc;
+      color: #25364d;
+      font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      white-space: pre-wrap;
+    }
+
+    body.chromeuse-raw-visible .chromeuse-markdown-shell {
+      display: none;
+    }
+
+    body.chromeuse-raw-visible .chromeuse-markdown-raw-view {
+      display: block;
     }
 
     .chromeuse-markdown-rail-toggle {
-      width: 22px;
-      height: 22px;
-      border: 3px solid #b8bec6;
+      min-width: 26px;
+      width: 26px;
+      height: 26px;
+      border: 2px solid #b8bec6;
       border-radius: 4px;
       background: linear-gradient(90deg, transparent 40%, #b8bec6 40%, #b8bec6 52%, transparent 52%);
     }
@@ -718,21 +894,21 @@ function createStyle(doc: Document): HTMLStyleElement {
     }
 
     .chromeuse-markdown-toc-list a {
-      min-height: 42px;
-      font-size: 18px;
+      min-height: 34px;
+      font-size: 15px;
     }
 
     .chromeuse-markdown-toc-level-2 a {
-      padding-left: 30px;
+      padding-left: 24px;
     }
 
     .chromeuse-markdown-toc-level-3 a {
-      padding-left: 48px;
-      font-size: 16px;
+      padding-left: 38px;
+      font-size: 14px;
     }
 
     body.chromeuse-sidebar-collapsed .chromeuse-markdown-sidebar {
-      transform: translateX(-390px);
+      transform: translateX(-340px);
     }
 
     body.chromeuse-sidebar-collapsed .chromeuse-markdown-main {
@@ -745,36 +921,57 @@ function createStyle(doc: Document): HTMLStyleElement {
 
     @media (max-width: 900px) {
       .chromeuse-markdown-sidebar {
-        width: 320px;
+        width: 280px;
       }
       .chromeuse-markdown-main {
-        margin-left: 320px;
-        padding: 78px 30px;
+        margin-left: 280px;
+        padding: 64px 24px;
       }
       .chromeuse-markdown-top-left {
-        left: 350px;
+        left: 308px;
       }
     }
   `;
   return style;
 }
 
-async function fetchDirectoryListing(directoryUrl: string): Promise<string> {
+export async function fetchDirectoryListing(directoryUrl: string): Promise<string> {
+  let extensionFetchError: unknown;
+
   if (typeof chrome !== "undefined" && chrome.runtime?.sendMessage) {
-    const response = await chrome.runtime.sendMessage({
-      action: "chromeuse_fetch_directory_listing",
-      url: directoryUrl,
-    });
-    if (response?.ok && typeof response.html === "string") return response.html;
-    throw new Error(response?.error ?? "Unable to load files");
+    try {
+      const response = await chrome.runtime.sendMessage({
+        action: "chromeuse_fetch_directory_listing",
+        url: directoryUrl,
+      });
+      if (response?.ok && typeof response.html === "string") return response.html;
+      if (typeof response === "string") return response;
+      extensionFetchError = new Error(response?.error ?? "Extension fetch failed");
+    } catch (error) {
+      extensionFetchError = error;
+    }
   }
 
-  const response = await fetch(directoryUrl);
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return response.text();
+  try {
+    const response = await fetch(directoryUrl);
+    if (!response.ok && !isFileUrl(directoryUrl)) throw new Error(`HTTP ${response.status}`);
+    return response.text();
+  } catch (error) {
+    if (extensionFetchError) {
+      const extensionMessage = extensionFetchError instanceof Error ? extensionFetchError.message : String(extensionFetchError);
+      const pageMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Unable to load files: extension fetch failed (${extensionMessage}); page fetch failed (${pageMessage})`);
+    }
+    throw error;
+  }
 }
 
-function renderFileTreeEntry(doc: Document, entry: MarkdownFileTreeEntry, currentUrl: string): HTMLElement {
+function renderFileTreeEntry(
+  doc: Document,
+  entry: MarkdownFileTreeEntry,
+  currentUrl: string,
+  navigationList: HTMLElement,
+): HTMLElement {
   const item = doc.createElement("li");
   item.className = `chromeuse-markdown-file-tree-entry chromeuse-markdown-file-tree-entry-${entry.type}`;
 
@@ -782,7 +979,17 @@ function renderFileTreeEntry(doc: Document, entry: MarkdownFileTreeEntry, curren
     const button = doc.createElement("button");
     button.type = "button";
     button.innerHTML = `<span class="chromeuse-markdown-caret">▸</span><span class="chromeuse-markdown-icon-folder">▢</span><span class="chromeuse-markdown-file-name"></span>`;
+    button.children[1]!.textContent = entry.name === ".." ? "↑" : "▢";
     button.lastElementChild!.textContent = entry.name;
+
+    if (entry.name === "..") {
+      button.firstElementChild!.textContent = "";
+      button.addEventListener("click", () => {
+        void loadFileTreeDirectory(doc, entry.url, navigationList, currentUrl, true, navigationList);
+      });
+      item.appendChild(button);
+      return item;
+    }
 
     const childList = doc.createElement("ul");
     childList.className = "chromeuse-markdown-file-tree";
@@ -793,7 +1000,7 @@ function renderFileTreeEntry(doc: Document, entry: MarkdownFileTreeEntry, curren
       childList.hidden = !expanded;
       if (expanded && !childList.dataset.loaded) {
         childList.dataset.loaded = "true";
-        void loadFileTreeDirectory(doc, entry.url, childList, currentUrl);
+        void loadFileTreeDirectory(doc, entry.url, childList, currentUrl, false, navigationList);
       }
     });
 
@@ -829,11 +1036,15 @@ async function loadFileTreeDirectory(
   directoryUrl: string,
   list: HTMLElement,
   currentUrl: string,
+  includeParentEntry = true,
+  navigationList: HTMLElement = list,
 ): Promise<void> {
   list.textContent = "Loading...";
   try {
     const html = await fetchDirectoryListing(directoryUrl);
-    const entries = parseDirectoryListing(html, directoryUrl).filter((entry) => !entry.name.startsWith("."));
+    const entries = buildFileTreeEntries(html, directoryUrl, includeParentEntry).filter(
+      (entry) => !hideDotFiles || entry.name === ".." || !entry.name.startsWith("."),
+    );
     list.replaceChildren();
 
     if (!entries.length) {
@@ -841,9 +1052,9 @@ async function loadFileTreeDirectory(
       return;
     }
 
-    for (const entry of entries) list.appendChild(renderFileTreeEntry(doc, entry, currentUrl));
-  } catch {
-    list.textContent = "Unable to load files";
+    for (const entry of entries) list.appendChild(renderFileTreeEntry(doc, entry, currentUrl, navigationList));
+  } catch (error) {
+    list.textContent = error instanceof Error ? error.message : "Unable to load files";
   }
 }
 
@@ -923,6 +1134,9 @@ function createFileTreeSidebar(doc: Document, currentUrl: string, headings: read
   tocPanel.appendChild(createTocList(doc, headings));
   sidebar.append(createSideSwitch(doc, filesPanel, tocPanel), filesPanel, tocPanel);
   void loadFileTreeDirectory(doc, parentDirectoryUrl, list, currentUrl);
+  doc.addEventListener("chromeuse_hide_dotfiles_changed", () => {
+    void loadFileTreeDirectory(doc, parentDirectoryUrl, list, currentUrl);
+  });
   return sidebar;
 }
 
@@ -933,7 +1147,52 @@ function applyHeadingIds(content: HTMLElement, headings: readonly MarkdownHeadin
   }
 }
 
-function createTopControls(doc: Document): DocumentFragment {
+function createOptionsMenu(doc: Document): HTMLElement {
+  const menu = doc.createElement("div");
+  menu.className = "chromeuse-markdown-options-menu";
+  menu.innerHTML = `
+    <div class="chromeuse-markdown-options-title">Options</div>
+    <label class="chromeuse-markdown-options-row">
+      <span>
+        <strong>Hide dotfiles</strong>
+        <small>Hide files and folders starting with a dot.</small>
+      </span>
+      <input type="checkbox" data-option="hide-dotfiles" />
+    </label>
+    <div class="chromeuse-markdown-options-label">Theme</div>
+    <div class="chromeuse-markdown-options-theme">
+      <button type="button" data-theme="light">Light</button>
+      <button type="button" data-theme="dark">Dark</button>
+      <button type="button" data-theme="auto">Auto</button>
+    </div>
+  `;
+
+  const hideDotFilesInput = menu.querySelector<HTMLInputElement>('[data-option="hide-dotfiles"]');
+  if (hideDotFilesInput) {
+    hideDotFilesInput.checked = hideDotFiles;
+    hideDotFilesInput.addEventListener("change", () => {
+      hideDotFiles = hideDotFilesInput.checked;
+      doc.dispatchEvent(new CustomEvent("chromeuse_hide_dotfiles_changed"));
+    });
+  }
+
+  const setTheme = (theme: string) => {
+    const dark = theme === "dark" || (theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+    doc.body.classList.toggle("chromeuse-theme-dark", dark);
+    menu.querySelectorAll<HTMLButtonElement>("[data-theme]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.theme === theme);
+    });
+  };
+
+  menu.querySelectorAll<HTMLButtonElement>("[data-theme]").forEach((button) => {
+    button.addEventListener("click", () => setTheme(button.dataset.theme ?? "light"));
+  });
+  setTheme("light");
+
+  return menu;
+}
+
+function createTopControls(doc: Document, source: string): DocumentFragment {
   const fragment = doc.createDocumentFragment();
 
   const left = doc.createElement("div");
@@ -952,14 +1211,26 @@ function createTopControls(doc: Document): DocumentFragment {
   more.className = "chromeuse-markdown-icon-button";
   more.textContent = "•••";
   more.title = "More";
+  const optionsMenu = createOptionsMenu(doc);
+  more.addEventListener("click", (event) => {
+    event.stopPropagation();
+    actions.classList.toggle("open");
+  });
+  optionsMenu.addEventListener("click", (event) => event.stopPropagation());
+  doc.addEventListener("click", () => actions.classList.remove("open"));
+
   const code = doc.createElement("button");
   code.type = "button";
   code.className = "chromeuse-markdown-icon-button";
   code.textContent = "</>";
   code.title = "Toggle raw";
-  actions.append(more, code);
+  code.addEventListener("click", () => doc.body.classList.toggle("chromeuse-raw-visible"));
+  const raw = doc.createElement("pre");
+  raw.className = "chromeuse-markdown-raw-view";
+  raw.textContent = source;
+  actions.append(more, code, optionsMenu);
 
-  fragment.append(left, actions);
+  fragment.append(left, actions, raw);
   return fragment;
 }
 
@@ -993,7 +1264,7 @@ export function renderCurrentMarkdownDocument(doc: Document = document, url: str
   if (sidebar) shell.append(sidebar);
   shell.append(main);
   doc.body.className = `${doc.body.className} chromeuse-markdown-document`.trim();
-  doc.body.replaceChildren(createTopControls(doc), shell);
+  doc.body.replaceChildren(createTopControls(doc, model.source), shell);
   return true;
 }
 

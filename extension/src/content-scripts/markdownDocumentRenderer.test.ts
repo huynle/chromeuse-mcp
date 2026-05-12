@@ -1,13 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  addParentDirectoryEntry,
+  buildFileTreeEntries,
   createMarkdownDocumentModel,
   extractMarkdownHeadings,
+  fetchDirectoryListing,
   getParentDirectoryUrl,
   parseDirectoryListing,
   shouldRenderMarkdownDocument,
 } from "./markdownDocumentRenderer.js";
 
 describe("markdown document renderer", () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("recognizes markdown documents opened directly in a Chrome tab", () => {
     expect(shouldRenderMarkdownDocument("file:///Users/me/notes.md", "text/plain")).toBe(true);
     expect(shouldRenderMarkdownDocument("https://example.com/spec.markdown", "text/plain")).toBe(true);
@@ -55,5 +62,67 @@ describe("markdown document renderer", () => {
       { name: "specs", url: "file:///Users/me/project/docs/specs/", type: "directory" },
       { name: "guide.md", url: "file:///Users/me/project/docs/guide.md", type: "file" },
     ]);
+  });
+
+  it("adds an up-directory entry before child entries", () => {
+    expect(
+      addParentDirectoryEntry(
+        [{ name: "README.md", url: "file:///Users/me/project/docs/sub/README.md", type: "file" }],
+        "file:///Users/me/project/docs/sub/",
+      ),
+    ).toEqual([
+      { name: "..", url: "file:///Users/me/project/docs/", type: "directory" },
+      { name: "README.md", url: "file:///Users/me/project/docs/sub/README.md", type: "file" },
+    ]);
+  });
+
+  it("omits up-directory entries for nested expanded folders", () => {
+    const listing = `
+      <script>
+        addRow("README.md", "README.md", 0, "1 KB", "today");
+        addRow("child", "child/", 1, "", "today");
+      </script>
+    `;
+
+    expect(buildFileTreeEntries(listing, "file:///Users/me/project/docs/sub/", false)).toEqual([
+      { name: "child", url: "file:///Users/me/project/docs/sub/child/", type: "directory" },
+      { name: "README.md", url: "file:///Users/me/project/docs/sub/README.md", type: "file" },
+    ]);
+  });
+
+  it("falls back to page-context fetch when extension directory fetch fails", async () => {
+    const sendMessage = vi.fn().mockResolvedValue({ ok: false, error: "Failed to fetch" });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => "directory html",
+    });
+
+    vi.stubGlobal("chrome", {
+      runtime: { sendMessage },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchDirectoryListing("file:///Users/me/project/docs/")).resolves.toBe("directory html");
+    expect(sendMessage).toHaveBeenCalledWith({
+      action: "chromeuse_fetch_directory_listing",
+      url: "file:///Users/me/project/docs/",
+    });
+    expect(fetchMock).toHaveBeenCalledWith("file:///Users/me/project/docs/");
+  });
+
+  it("accepts readable file directory responses even when fetch reports status 0", async () => {
+    const sendMessage = vi.fn().mockResolvedValue({ ok: false, error: "HTTP 0" });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 0,
+      text: async () => "file directory html",
+    });
+
+    vi.stubGlobal("chrome", {
+      runtime: { sendMessage },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchDirectoryListing("file:///Users/me/project/docs/")).resolves.toBe("file directory html");
   });
 });
