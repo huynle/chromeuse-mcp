@@ -4,14 +4,16 @@ import {
   createMcpServer,
   WebSocketBridge,
   type BrowserTransport,
+  type ToolRequestResult,
 } from "@chromeuse/mcp-server";
 import { createGatewayServer } from "./gatewayServer.js";
+import { HttpGatewayTransport } from "./httpGatewayTransport.js";
 import { RequestQueueTransport } from "./requestQueue.js";
 
 const DEFAULT_GATEWAY_HOST = "127.0.0.1";
 const DEFAULT_GATEWAY_PORT = 8766;
 
-export type GatewayMode = "stdio" | "server";
+export type GatewayMode = "stdio" | "server" | "proxy";
 
 export interface GatewayConfig {
   readonly mode: GatewayMode;
@@ -34,6 +36,7 @@ interface RuntimeDependencies {
   }) => BrowserTransport;
   readonly createQueueTransport?: (transport: BrowserTransport) => BrowserTransport;
   readonly createGatewayServerImpl?: (options: { transport: BrowserTransport }) => HttpServer;
+  readonly createHttpGatewayTransport?: (baseUrl: string) => BrowserTransport;
 }
 
 export interface GatewayRuntime {
@@ -67,16 +70,89 @@ export async function startGateway(
     const createQueue =
       dependencies.createQueueTransport ?? ((transport) => new RequestQueueTransport(transport));
     const createHttpServer = dependencies.createGatewayServerImpl ?? createGatewayServer;
+    const createHttpGatewayTransport =
+      dependencies.createHttpGatewayTransport ?? ((baseUrl) => new HttpGatewayTransport(baseUrl));
+    const baseUrl = `http://${config.gatewayHost}:${config.gatewayPort}`;
+
+    const deferredTransport = new DeferredBrowserTransport();
+    const httpServer = createHttpServer({ transport: deferredTransport });
+
+    try {
+      await listen(httpServer, config.gatewayPort, config.gatewayHost);
+    } catch (error) {
+      if (isAddressInUse(error)) {
+        const proxyTransport = createHttpGatewayTransport(baseUrl);
+        try {
+          await proxyTransport.connect();
+        } catch (proxyError) {
+          const message = errorMessage(proxyError);
+          stderr.write(
+            `Unable to start ChromeUse MCP gateway proxy: existing gateway at ${baseUrl} did not pass compatible /health probe. ${message}\n`
+          );
+          throw new Error(
+            `Unable to start ChromeUse MCP gateway proxy: existing gateway at ${baseUrl} did not pass compatible /health probe. ${message}`
+          );
+        }
+
+        let mcpServer: McpServerLike | undefined;
+        try {
+          mcpServer = await createMcp(proxyTransport);
+          await mcpServer.connect(createStdio());
+          const activeMcpServer = mcpServer;
+
+          stderr.write(`ChromeUse MCP gateway started (proxy, ${baseUrl})\n`);
+
+          return {
+            mode: "proxy",
+            config: { ...config, mode: "proxy" },
+            close: async () => {
+              proxyTransport.disconnect();
+              await activeMcpServer.close();
+            },
+          };
+        } catch (proxyStartupError) {
+          proxyTransport.disconnect();
+          await mcpServer?.close();
+          const message = errorMessage(proxyStartupError);
+          stderr.write(
+            `Unable to start ChromeUse MCP gateway proxy: proxy startup failed after compatible /health at ${baseUrl}. ${message}\n`
+          );
+          throw new Error(
+            `Unable to start ChromeUse MCP gateway proxy: proxy startup failed after compatible /health at ${baseUrl}. ${message}`
+          );
+        }
+      }
+
+      const message = errorMessage(error);
+      stderr.write(
+        `Unable to start ChromeUse MCP gateway server: failed to bind HTTP ${baseUrl}. ${message}\n`
+      );
+      throw new Error(
+        `Unable to start ChromeUse MCP gateway server: failed to bind HTTP ${baseUrl}. ${message}`
+      );
+    }
 
     const bridge = createBridge({ env: { CHROMEUSE_WS_PORT: env.CHROMEUSE_WS_PORT } });
     const queuedTransport = createQueue(bridge);
-    await queuedTransport.connect();
+    deferredTransport.setDelegate(queuedTransport);
 
-    const mcpServer = await createMcp(queuedTransport);
-    await mcpServer.connect(createStdio());
-
-    const httpServer = createHttpServer({ transport: queuedTransport });
-    await listen(httpServer, config.gatewayPort, config.gatewayHost);
+    let mcpServer: McpServerLike | undefined;
+    try {
+      await queuedTransport.connect();
+      mcpServer = await createMcp(queuedTransport);
+      await mcpServer.connect(createStdio());
+    } catch (error) {
+      await closeHttpServer(httpServer);
+      queuedTransport.disconnect();
+      await mcpServer?.close();
+      const message = errorMessage(error);
+      stderr.write(
+        `Unable to start ChromeUse MCP gateway server: HTTP ${baseUrl} was bound, but WebSocket bridge startup failed; HTTP listener closed. ${message}\n`
+      );
+      throw new Error(
+        `Unable to start ChromeUse MCP gateway server: HTTP ${baseUrl} was bound, but WebSocket bridge startup failed; HTTP listener closed. ${message}`
+      );
+    }
 
     stderr.write(
       `ChromeUse MCP gateway started (server, http://${config.gatewayHost}:${config.gatewayPort})\n`
@@ -105,6 +181,53 @@ export async function startGateway(
       await mcpServer.close();
     },
   };
+}
+
+class DeferredBrowserTransport implements BrowserTransport {
+  private delegate: BrowserTransport | undefined;
+
+  get connected(): boolean {
+    return this.delegate?.connected ?? false;
+  }
+
+  setDelegate(delegate: BrowserTransport): void {
+    this.delegate = delegate;
+  }
+
+  async connect(): Promise<void> {
+    await this.requireDelegate().connect();
+  }
+
+  async sendToolRequest(
+    tool: string,
+    args: Record<string, unknown>,
+    timeoutMs?: number
+  ): Promise<ToolRequestResult> {
+    return this.requireDelegate().sendToolRequest(tool, args, timeoutMs);
+  }
+
+  disconnect(): void {
+    this.delegate?.disconnect();
+  }
+
+  private requireDelegate(): BrowserTransport {
+    if (!this.delegate) {
+      throw new Error("ChromeUse gateway transport is not ready yet");
+    }
+    return this.delegate;
+  }
+}
+
+function isAddressInUse(error: unknown): boolean {
+  return isRecord(error) && error.code === "EADDRINUSE";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function parsePort(value: string | undefined): number | undefined {

@@ -17,8 +17,18 @@ class FakeBrowserTransport implements BrowserTransport {
 }
 
 class FakeHttpServer extends EventEmitter {
+  constructor(private readonly listenError?: Error) {
+    super();
+  }
+
   readonly listen = vi.fn((_port: number, _host: string) => {
-    queueMicrotask(() => this.emit("listening"));
+    queueMicrotask(() => {
+      if (this.listenError) {
+        this.emit("error", this.listenError);
+      } else {
+        this.emit("listening");
+      }
+    });
     return this;
   });
   readonly close = vi.fn((callback?: (error?: Error) => void) => {
@@ -100,12 +110,106 @@ describe("gateway runtime", () => {
     expect(queue.connect).toHaveBeenCalledTimes(1);
     expect(createMcpServerImpl).toHaveBeenCalledWith(queue);
     expect(mcpServer.connect).toHaveBeenCalledWith(stdioTransport);
-    expect(createGatewayServerImpl).toHaveBeenCalledWith({ transport: queue });
+    const serverTransport = createGatewayServerImpl.mock.calls[0]?.[0].transport;
+    expect(serverTransport).not.toBe(queue);
+    expect(serverTransport.connected).toBe(true);
     expect(httpServer.listen).toHaveBeenCalledWith(0, "127.0.0.1");
 
     await runtime.close();
     expect(httpServer.close).toHaveBeenCalledTimes(1);
     expect(queue.disconnect).toHaveBeenCalledTimes(1);
+    expect(mcpServer.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("becomes proxy after an existing compatible gateway owns the HTTP port without creating WebSocket bridge", async () => {
+    const httpBindError = Object.assign(new Error("address already in use"), {
+      code: "EADDRINUSE",
+    });
+    const httpServer = new FakeHttpServer(httpBindError);
+    const proxyTransport = new FakeBrowserTransport();
+    const mcpServer = { connect: vi.fn(async () => {}), close: vi.fn(async () => {}) };
+    const stdioTransport = { kind: "stdio" };
+    const createWebSocketBridge = vi.fn(() => new FakeBrowserTransport());
+    const createMcpServerImpl = vi.fn(async () => mcpServer);
+    const createGatewayServerImpl = vi.fn(() => httpServer as never);
+    const createHttpGatewayTransport = vi.fn(() => proxyTransport);
+
+    const runtime = await startGateway({
+      env: { CHROMEUSE_GATEWAY_MODE: "server", CHROMEUSE_GATEWAY_PORT: "8766" },
+      stderr: { write: vi.fn() },
+      createWebSocketBridge,
+      createMcpServerImpl,
+      createStdioTransport: () => stdioTransport,
+      createGatewayServerImpl,
+      createHttpGatewayTransport,
+    });
+
+    expect(runtime.mode).toBe("proxy");
+    expect(createWebSocketBridge).not.toHaveBeenCalled();
+    expect(proxyTransport.connect).toHaveBeenCalledTimes(1);
+    expect(createHttpGatewayTransport).toHaveBeenCalledWith("http://127.0.0.1:8766");
+    expect(createMcpServerImpl).toHaveBeenCalledWith(proxyTransport);
+    expect(mcpServer.connect).toHaveBeenCalledWith(stdioTransport);
+
+    await runtime.close();
+    expect(proxyTransport.disconnect).toHaveBeenCalledTimes(1);
+    expect(mcpServer.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes HTTP immediately when WebSocket bridge connection fails after winning election", async () => {
+    const bridge = new FakeBrowserTransport();
+    const queue = new FakeBrowserTransport();
+    queue.connect.mockRejectedValueOnce(new Error("WebSocket port 8765 already in use"));
+    const httpServer = new FakeHttpServer();
+    const createGatewayServerImpl = vi.fn(() => httpServer as never);
+
+    await expect(
+      startGateway({
+        env: { CHROMEUSE_GATEWAY_MODE: "server", CHROMEUSE_GATEWAY_PORT: "0" },
+        stderr: { write: vi.fn() },
+        createWebSocketBridge: vi.fn(() => bridge),
+        createQueueTransport: vi.fn(() => queue),
+        createMcpServerImpl: vi.fn(),
+        createStdioTransport: () => ({ kind: "stdio" }),
+        createGatewayServerImpl,
+      })
+    ).rejects.toThrow("Unable to start ChromeUse MCP gateway server");
+
+    expect(httpServer.listen).toHaveBeenCalledWith(0, "127.0.0.1");
+    expect(queue.connect).toHaveBeenCalledTimes(1);
+    expect(httpServer.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports proxy startup failures separately after compatible health succeeds", async () => {
+    const httpBindError = Object.assign(new Error("address already in use"), {
+      code: "EADDRINUSE",
+    });
+    const httpServer = new FakeHttpServer(httpBindError);
+    const proxyTransport = new FakeBrowserTransport();
+    const mcpServer = {
+      connect: vi.fn(async () => {
+        throw new Error("stdio refused");
+      }),
+      close: vi.fn(async () => {}),
+    };
+    const stderr = { write: vi.fn() };
+
+    await expect(
+      startGateway({
+        env: { CHROMEUSE_GATEWAY_MODE: "server", CHROMEUSE_GATEWAY_PORT: "8766" },
+        stderr,
+        createWebSocketBridge: vi.fn(() => new FakeBrowserTransport()),
+        createMcpServerImpl: vi.fn(async () => mcpServer),
+        createStdioTransport: () => ({ kind: "stdio" }),
+        createGatewayServerImpl: vi.fn(() => httpServer as never),
+        createHttpGatewayTransport: vi.fn(() => proxyTransport),
+      })
+    ).rejects.toThrow("proxy startup failed after compatible /health");
+
+    expect(proxyTransport.connect).toHaveBeenCalledTimes(1);
+    expect(stderr.write).toHaveBeenCalledWith(
+      expect.stringContaining("proxy startup failed after compatible /health")
+    );
     expect(mcpServer.close).toHaveBeenCalledTimes(1);
   });
 });
