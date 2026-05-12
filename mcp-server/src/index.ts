@@ -3,13 +3,12 @@
  * MCP Server entry point.
  *
  * Starts the ChromeUse MCP server with a stdio transport, connecting an MCP client
- * to the Chrome extension via the native messaging host socket.
+ * to the Chrome extension via the WebSocket bridge with native messaging fallback.
  *
  * Usage:
  *   node mcp-server/dist/index.js
  *
- * The server discovers and connects to an active native host socket
- * automatically when the first tool call arrives.
+ * The server starts its browser bridge during startup and reconnects on demand.
  */
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";

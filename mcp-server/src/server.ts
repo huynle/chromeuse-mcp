@@ -2,7 +2,7 @@
  * MCP Server that exposes Chrome browser tools for ChromeUse MCP.
  *
  * Registers 15 tool schemas via the MCP protocol and forwards
- * tool calls to the Chrome extension through the native host socket.
+ * tool calls to the Chrome extension through WebSocket-first browser transport.
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -13,7 +13,85 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { TOOL_NAMES } from "@chromeuse/shared";
 import { SocketClient } from "./socketClient.js";
-import type { BrowserTransport } from "./transport.js";
+import type { BrowserTransport, ToolRequestResult } from "./transport.js";
+import { WebSocketBridge } from "./webSocketBridge.js";
+
+const NO_EXTENSION_CONNECTED_MESSAGE =
+  "No extension connected. Open the ChromeUse side panel and click Connect, or keep a native host session running for fallback.";
+
+type ClosableTransport = BrowserTransport & {
+  close?: () => void | Promise<void>;
+};
+
+export class WebSocketFirstTransport implements BrowserTransport {
+  private lastWebSocketError: Error | null = null;
+  private lastNativeError: Error | null = null;
+
+  constructor(
+    private readonly webSocket: BrowserTransport = new WebSocketBridge(),
+    private readonly native: BrowserTransport = new SocketClient()
+  ) {}
+
+  get connected(): boolean {
+    return this.webSocket.connected || this.native.connected;
+  }
+
+  async connect(): Promise<void> {
+    try {
+      await this.webSocket.connect();
+      this.lastWebSocketError = null;
+    } catch (error) {
+      this.lastWebSocketError = toError(error);
+    }
+
+    if (this.webSocket.connected || this.native.connected) return;
+
+    try {
+      await this.native.connect();
+      this.lastNativeError = null;
+    } catch (error) {
+      this.lastNativeError = toError(error);
+    }
+  }
+
+  async sendToolRequest(
+    tool: string,
+    args: Record<string, unknown>,
+    timeoutMs?: number
+  ): Promise<ToolRequestResult> {
+    if (this.webSocket.connected) {
+      return this.webSocket.sendToolRequest(tool, args, timeoutMs);
+    }
+
+    if (this.native.connected) {
+      return this.native.sendToolRequest(tool, args, timeoutMs);
+    }
+
+    throw new Error(this.unavailableMessage());
+  }
+
+  disconnect(): void {
+    this.webSocket.disconnect();
+    this.native.disconnect();
+  }
+
+  async close(): Promise<void> {
+    await Promise.all([
+      closeTransport(this.webSocket),
+      closeTransport(this.native),
+    ]);
+  }
+
+  private unavailableMessage(): string {
+    const details = [
+      this.lastWebSocketError?.message,
+      this.lastNativeError?.message,
+    ].filter(Boolean);
+
+    if (details.length === 0) return NO_EXTENSION_CONNECTED_MESSAGE;
+    return `${NO_EXTENSION_CONNECTED_MESSAGE} (${details.join("; ")})`;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Tool schema definitions
@@ -410,21 +488,33 @@ const TOOL_SCHEMAS: Tool[] = [
  * Create and configure the MCP server.
  *
  * The server registers all tool schemas and forwards tool/call requests
- * to the Chrome extension via the native host socket.
+ * to the Chrome extension via WebSocket-first browser transport.
  *
- * @param socketClient - Optional pre-configured browser transport (for testing).
+ * @param browserTransport - Optional pre-configured browser transport (for testing).
  *   If not provided, the server will create one and attempt to connect.
  */
 export async function createMcpServer(
-  socketClient?: BrowserTransport
+  browserTransport?: BrowserTransport
 ): Promise<Server> {
   const server = new Server(
     { name: "chromeuse-mcp", version: "0.1.0" },
     { capabilities: { tools: {} } }
   );
 
-  // Use provided client or create a new one
-  const client = socketClient ?? new SocketClient();
+  const client = browserTransport ?? new WebSocketFirstTransport();
+  if (!browserTransport) await client.connect();
+
+  const closeServer = server.close.bind(server);
+  let closing = false;
+  server.close = async () => {
+    if (closing) return;
+    closing = true;
+    try {
+      await closeServer();
+    } finally {
+      await closeTransport(client);
+    }
+  };
 
   // ---------------------------------------------------------------------------
   // tools/list handler
@@ -450,7 +540,7 @@ export async function createMcpServer(
       };
     }
 
-    // Ensure we're connected to the native host
+    // Ensure transport resources are started and a browser connection is available.
     if (!client.connected) {
       try {
         await client.connect();
@@ -459,7 +549,7 @@ export async function createMcpServer(
           content: [
             {
               type: "text" as const,
-              text: `Failed to connect to native host: ${(err as Error).message}. Is the Chrome extension running?`,
+              text: `Failed to connect to Chrome extension: ${(err as Error).message}`,
             },
           ],
           isError: true,
@@ -495,4 +585,17 @@ export async function createMcpServer(
  */
 export function getToolSchemas(): readonly Tool[] {
   return TOOL_SCHEMAS;
+}
+
+async function closeTransport(transport: BrowserTransport): Promise<void> {
+  const closable = transport as ClosableTransport;
+  if (typeof closable.close === "function") {
+    await closable.close();
+  } else {
+    transport.disconnect();
+  }
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
 }

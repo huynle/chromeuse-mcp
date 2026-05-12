@@ -1,9 +1,42 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { createMcpServer, getToolSchemas } from "./server.js";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import {
+  WebSocketFirstTransport,
+  createMcpServer,
+  getToolSchemas,
+} from "./server.js";
 import { TOOL_NAMES, ALL_TOOL_NAMES } from "@chromeuse/shared";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { SocketClient } from "./socketClient.js";
+import type { BrowserTransport, ToolRequestResult } from "./transport.js";
+
+type TestTransport = BrowserTransport & {
+  connect: ReturnType<typeof vi.fn>;
+  sendToolRequest: ReturnType<typeof vi.fn>;
+  disconnect: ReturnType<typeof vi.fn>;
+  setConnected: (value: boolean) => void;
+};
+
+function createTestTransport(options: { connected?: boolean } = {}): TestTransport {
+  let connected = options.connected ?? true;
+
+  return {
+    get connected() {
+      return connected;
+    },
+    setConnected(value: boolean) {
+      connected = value;
+    },
+    connect: vi.fn(async () => {
+      connected = true;
+    }),
+    sendToolRequest: vi.fn(async (): Promise<ToolRequestResult> => ({
+      content: [{ type: "text", text: "ok" }],
+    })),
+    disconnect: vi.fn(() => {
+      connected = false;
+    }),
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Tool schema tests
@@ -211,17 +244,12 @@ describe("getToolSchemas", () => {
 
 describe("createMcpServer", () => {
   let client: Client;
-  let mockSocketClient: SocketClient;
+  let server: Awaited<ReturnType<typeof createMcpServer>>;
+  let mockSocketClient: TestTransport;
 
   beforeEach(async () => {
-    // Create a mock socket client
-    mockSocketClient = new SocketClient();
-    // Override connect to no-op
-    vi.spyOn(mockSocketClient, "connect").mockResolvedValue(undefined);
-    // Mark as connected
-    Object.defineProperty(mockSocketClient, "connected", { get: () => true });
-
-    const server = await createMcpServer(mockSocketClient);
+    mockSocketClient = createTestTransport();
+    server = await createMcpServer(mockSocketClient);
     client = new Client(
       { name: "test-client", version: "1.0.0" },
       { capabilities: {} }
@@ -232,6 +260,11 @@ describe("createMcpServer", () => {
       client.connect(clientTransport),
       server.connect(serverTransport),
     ]);
+  });
+
+  afterEach(async () => {
+    await client.close();
+    await server.close();
   });
 
   it("lists all 15 tools via MCP protocol", async () => {
@@ -261,7 +294,7 @@ describe("createMcpServer", () => {
   });
 
   it("forwards tool call to socket client", async () => {
-    const sendSpy = vi.spyOn(mockSocketClient, "sendToolRequest").mockResolvedValue({
+    mockSocketClient.sendToolRequest.mockResolvedValue({
       content: [{ type: "text", text: "Navigated to: https://example.com" }],
     });
 
@@ -270,7 +303,7 @@ describe("createMcpServer", () => {
       arguments: { action: "goto", url: "https://example.com" },
     });
 
-    expect(sendSpy).toHaveBeenCalledWith("navigate", {
+    expect(mockSocketClient.sendToolRequest).toHaveBeenCalledWith("navigate", {
       action: "goto",
       url: "https://example.com",
     });
@@ -280,9 +313,7 @@ describe("createMcpServer", () => {
   });
 
   it("returns error when socket client throws", async () => {
-    vi.spyOn(mockSocketClient, "sendToolRequest").mockRejectedValue(
-      new Error("Connection lost")
-    );
+    mockSocketClient.sendToolRequest.mockRejectedValue(new Error("Connection lost"));
 
     const result = await client.callTool({
       name: "computer",
@@ -300,22 +331,7 @@ describe("createMcpServer", () => {
   });
 
   it("attempts reconnect when not connected", async () => {
-    // Create a fresh socket client where we can control the connected state
-    const freshClient = Object.create(SocketClient.prototype) as SocketClient;
-    let isConnected = false;
-
-    Object.defineProperty(freshClient, "connected", {
-      get: () => isConnected,
-      configurable: true,
-    });
-
-    const connectSpy = vi.fn(async () => {
-      isConnected = true;
-    });
-    freshClient.connect = connectSpy;
-    freshClient.sendToolRequest = vi.fn().mockResolvedValue({
-      content: [{ type: "text", text: "ok" }],
-    });
+    const freshClient = createTestTransport({ connected: false });
 
     // Create a server with the fresh client
     const server2 = await createMcpServer(freshClient);
@@ -331,6 +347,91 @@ describe("createMcpServer", () => {
       arguments: {},
     });
 
-    expect(connectSpy).toHaveBeenCalled();
+    expect(freshClient.connect).toHaveBeenCalled();
+
+    await client2.close();
+    await server2.close();
+  });
+
+  it("closes the injected browser transport when the server closes", async () => {
+    await server.close();
+
+    expect(mockSocketClient.disconnect).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("WebSocketFirstTransport", () => {
+  it("prefers a connected WebSocket extension over native fallback", async () => {
+    const webSocket = createTestTransport({ connected: true });
+    const native = createTestTransport({ connected: true });
+    const transport = new WebSocketFirstTransport(webSocket, native);
+
+    webSocket.sendToolRequest.mockResolvedValue({
+      content: [{ type: "text", text: "websocket" }],
+    });
+
+    await expect(transport.sendToolRequest("tabs_context", {})).resolves.toEqual({
+      content: [{ type: "text", text: "websocket" }],
+    });
+    expect(webSocket.sendToolRequest).toHaveBeenCalledWith(
+      "tabs_context",
+      {},
+      undefined
+    );
+    expect(native.sendToolRequest).not.toHaveBeenCalled();
+  });
+
+  it("falls back to native transport when no WebSocket extension is connected", async () => {
+    const webSocket = createTestTransport({ connected: false });
+    const native = createTestTransport({ connected: true });
+    const transport = new WebSocketFirstTransport(webSocket, native);
+
+    native.sendToolRequest.mockResolvedValue({
+      content: [{ type: "text", text: "native" }],
+    });
+
+    await expect(transport.sendToolRequest("tabs_context", {})).resolves.toEqual({
+      content: [{ type: "text", text: "native" }],
+    });
+    expect(webSocket.sendToolRequest).not.toHaveBeenCalled();
+    expect(native.sendToolRequest).toHaveBeenCalledWith(
+      "tabs_context",
+      {},
+      undefined
+    );
+  });
+
+  it("mentions the side panel Connect action when no transport is connected", async () => {
+    const webSocket = createTestTransport({ connected: false });
+    const native = createTestTransport({ connected: false });
+    const transport = new WebSocketFirstTransport(webSocket, native);
+
+    await expect(transport.sendToolRequest("tabs_context", {})).rejects.toThrow(
+      /side panel.*Connect/i
+    );
+  });
+
+  it("starts WebSocket resources while allowing native fallback", async () => {
+    const webSocket = createTestTransport({ connected: false });
+    const native = createTestTransport({ connected: false });
+    webSocket.connect.mockImplementation(async () => undefined);
+    const transport = new WebSocketFirstTransport(webSocket, native);
+
+    await transport.connect();
+
+    expect(webSocket.connect).toHaveBeenCalled();
+    expect(native.connect).toHaveBeenCalled();
+    expect(transport.connected).toBe(true);
+  });
+
+  it("closes WebSocket and native resources", async () => {
+    const webSocket = createTestTransport();
+    const native = createTestTransport();
+    const transport = new WebSocketFirstTransport(webSocket, native);
+
+    await transport.close();
+
+    expect(webSocket.disconnect).toHaveBeenCalledTimes(1);
+    expect(native.disconnect).toHaveBeenCalledTimes(1);
   });
 });
