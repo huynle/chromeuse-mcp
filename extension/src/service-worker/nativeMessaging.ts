@@ -16,11 +16,7 @@ import type {
 } from "@chromeuse/shared";
 import type { ConnectionStatus } from "../types/messages.js";
 import { updateBadge } from "./badge.js";
-import { messageRouter } from "./messageRouter.js";
-import {
-  recordToolStart,
-  recordToolComplete,
-} from "./sidePanelHandler.js";
+import { createToolResponse, handleToolRequest } from "./toolRequestHandler.js";
 
 /** Native messaging host name — must match the installed manifest JSON filename */
 const NATIVE_HOST_NAME = "com.chromeuse.mcp_bridge";
@@ -125,19 +121,7 @@ export class NativeMessagingConnection {
    * Send a tool execution result back to the native host.
    */
   sendToolResponse(result: ToolResult, requestId: string): void {
-    if (result.success) {
-      this.sendMessage({
-        type: "tool_response",
-        request_id: requestId,
-        result: { content: result.content },
-      });
-    } else {
-      this.sendMessage({
-        type: "tool_response",
-        request_id: requestId,
-        error: { content: result.content },
-      });
-    }
+    this.sendMessage(createToolResponse(result, requestId));
   }
 
   /**
@@ -176,35 +160,7 @@ export class NativeMessagingConnection {
   private handleMessage(message: NativeMessage): void {
     switch (message.type) {
       case "tool_request": {
-        const toolName = message.params?.tool ?? message.method;
-        const entryId = recordToolStart(toolName);
-
-        messageRouter
-          .route({
-            method: message.method,
-            params: message.params,
-          })
-          .then((result) => {
-            recordToolComplete(entryId, result.success);
-            this.sendToolResponse(result, message.params.request_id);
-          })
-          .catch((error) => {
-            const errorMsg =
-              error instanceof Error ? error.message : String(error);
-            recordToolComplete(entryId, false, errorMsg);
-            this.sendToolResponse(
-              {
-                success: false,
-                content: [
-                  {
-                    type: "text",
-                    text: `Internal error: ${errorMsg}`,
-                  },
-                ],
-              },
-              message.params.request_id,
-            );
-          });
+        void handleToolRequest(message, (response) => this.sendMessage(response));
         break;
       }
 

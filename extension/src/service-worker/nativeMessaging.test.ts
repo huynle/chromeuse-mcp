@@ -350,6 +350,7 @@ describe("NativeMessagingConnection", () => {
     });
 
     it("preserves request_id on successful tool responses", async () => {
+      const routeSpy = vi.spyOn(messageRouter, "route");
       messageRouter.register("metadata_success", {
         async execute() {
           return {
@@ -372,11 +373,29 @@ describe("NativeMessagingConnection", () => {
       });
 
       await vi.waitFor(() => {
+        expect(routeSpy).toHaveBeenCalledWith({
+          method: "execute_tool",
+          params: {
+            tool: "metadata_success",
+            args: {},
+            request_id: "req-success-1",
+          },
+        });
         expect(mockPort.postMessage).toHaveBeenCalledWith({
           type: "tool_response",
           request_id: "req-success-1",
           result: { content: [{ type: "text", text: "ok" }] },
         });
+        expect(chromeStub.runtime.sendMessage).toHaveBeenCalledTimes(2);
+        expect(chromeStub.runtime.sendMessage).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "tool_execution_update",
+            entry: expect.objectContaining({
+              tool: "metadata_success",
+              status: "success",
+            }),
+          }),
+        );
       });
     });
 
