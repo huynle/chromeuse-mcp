@@ -49,6 +49,20 @@ describe("workspace tree view state", () => {
     expect(description).toBe("Workspace access was denied. Ask the user to select the workspace folder again. Reselect workspace to continue.");
   });
 
+  it("describes permission request recovery before asking users to reselect", () => {
+    const description = describeWorkspaceTreeState(baseState({
+      directory: null,
+      permission: {
+        state: "prompt",
+        action: "request-permission",
+        canRequest: true,
+        message: "Workspace access needs to be restored. Ask the user to grant access again.",
+      },
+    }));
+
+    expect(description).toBe("Workspace access needs to be restored. Ask the user to grant access again. Grant access to continue.");
+  });
+
   it("marks directories as expandable and files as selectable view items", () => {
     const items = toWorkspaceTreeItems({
       path: "/",
@@ -94,5 +108,15 @@ describe("workspace tree view state", () => {
       name: "README.md",
       selectedAt: 1_700_000_000_000,
     });
+  });
+
+  it("does not create selected file state for directory entries", () => {
+    expect(createSelectedWorkspaceFile({
+      kind: "directory",
+      name: "src",
+      path: "/src",
+      depth: 1,
+      canLoadChildren: true,
+    })).toBeNull();
   });
 });

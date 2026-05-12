@@ -41,4 +41,13 @@ const value = 1;
     expect(html).not.toContain("href");
     expect(html).toContain("bad");
   });
+
+  it("keeps safe defaults by not linkifying plain URLs or applying typographer substitutions", () => {
+    const html = renderMarkdown("Visit https://example.com and type -- quotes \"stay\" plain.");
+
+    expect(html).toContain("https://example.com");
+    expect(html).not.toContain("<a href=");
+    expect(html).toContain("--");
+    expect(html).toContain("&quot;stay&quot;");
+  });
 });

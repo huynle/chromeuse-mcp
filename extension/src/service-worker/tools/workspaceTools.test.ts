@@ -43,6 +43,17 @@ function binaryFile(name: string): TestFileHandle {
   } as unknown as TestFileHandle;
 }
 
+function byteFile(name: string, bytes: Uint8Array<ArrayBuffer>, type = "text/plain"): TestFileHandle {
+  const file = new File([bytes], name, { type });
+  return {
+    kind: "file",
+    name,
+    isSameEntry: async () => false,
+    getFile: async () => file,
+    file,
+  } as unknown as TestFileHandle;
+}
+
 function directory(name: string, children: FileSystemHandle[] = []): TestDirectoryHandle {
   const childMap = new Map(children.map((child) => [child.name, child]));
   return {
@@ -132,6 +143,57 @@ describe("workspace file tools", () => {
     ]);
   });
 
+  it("lists recursive directory entries only to the requested depth", async () => {
+    selectWorkspace(
+      directory("workspace", [
+        directory("src", [directory("nested", [textFile("leaf.txt", "not listed")])]),
+      ]),
+    );
+
+    const result = await new WorkspaceListTool().execute({ path: "/", depth: 2 }, {});
+
+    expect(result.success).toBe(true);
+    const payload = JSON.parse(resultText(result));
+    expect(payload.depth).toBe(2);
+    expect(payload.entries).toEqual([
+      {
+        kind: "directory",
+        name: "src",
+        path: "/src",
+        depth: 1,
+        canLoadChildren: true,
+        children: [
+          {
+            kind: "directory",
+            name: "nested",
+            path: "/src/nested",
+            depth: 2,
+            canLoadChildren: false,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("applies entry limits and reports truncated workspace listings", async () => {
+    selectWorkspace(
+      directory("workspace", [
+        textFile("b.txt", "b"),
+        textFile("a.txt", "a"),
+        textFile("c.txt", "c"),
+      ]),
+    );
+
+    const result = await new WorkspaceListTool().execute({ path: "/", limit: 2 }, {});
+
+    expect(result.success).toBe(true);
+    const payload = JSON.parse(resultText(result));
+    expect(payload.limit).toBe(2);
+    expect(payload.truncated).toBe(true);
+    expect(payload.entries).toHaveLength(2);
+    expect(payload.entries.map((entry: { name: string }) => entry.name)).toEqual(["a.txt", "b.txt"]);
+  });
+
   it("reads text files with truncation metadata", async () => {
     selectWorkspace(directory("workspace", [directory("docs", [textFile("guide.md", "abcdef")])]));
 
@@ -147,6 +209,25 @@ describe("workspace file tools", () => {
       truncated: true,
       content: "abc",
     });
+  });
+
+  it("rejects unsupported encodings and missing file paths before loading a workspace", async () => {
+    const tool = new WorkspaceReadTool();
+
+    const unsupportedEncoding = await tool.execute(
+      { path: "notes.txt", encoding: "base64" },
+      {},
+    );
+    const missingPath = await tool.execute({}, {});
+    const blankPath = await tool.execute({ path: "   " }, {});
+
+    expect(unsupportedEncoding.success).toBe(false);
+    expect(resultText(unsupportedEncoding)).toContain("only supports utf-8 encoding");
+    expect(missingPath.success).toBe(false);
+    expect(resultText(missingPath)).toContain("requires a workspace-relative path string");
+    expect(blankPath.success).toBe(false);
+    expect(resultText(blankPath)).toContain("requires a workspace-relative path string");
+    expect(loadSelectedDirectoryHandleMock).not.toHaveBeenCalled();
   });
 
   it("refuses binary files and paths outside the workspace", async () => {
@@ -170,6 +251,15 @@ describe("workspace file tools", () => {
     expect(resultText(result)).toContain("too large to read safely");
   });
 
+  it("returns decode errors for non-UTF-8 text files", async () => {
+    selectWorkspace(directory("workspace", [byteFile("latin1.txt", new Uint8Array([0xff]))]));
+
+    const result = await new WorkspaceReadTool().execute({ path: "latin1.txt" }, {});
+
+    expect(result.success).toBe(false);
+    expect(resultText(result)).toContain("Unable to decode workspace file as utf-8 text");
+  });
+
   it("returns actionable errors when workspace permission is lost", async () => {
     selectWorkspace(directoryWithPermission("workspace", "denied", [textFile("notes.txt", "hello")]));
 
@@ -187,5 +277,16 @@ describe("workspace file tools", () => {
 
     expect(result.success).toBe(false);
     expect(resultText(result)).toContain("Select a workspace folder in the side panel");
+  });
+
+  it("returns actionable errors when selected workspace storage cannot load", async () => {
+    loadSelectedDirectoryHandleMock.mockResolvedValue({ ok: false, error: "IndexedDB unavailable" });
+
+    const result = await new WorkspaceListTool().execute({}, {});
+
+    expect(result.success).toBe(false);
+    expect(resultText(result)).toContain("Unable to load the selected workspace");
+    expect(resultText(result)).toContain("Select a workspace folder in the side panel");
+    expect(resultText(result)).toContain("IndexedDB unavailable");
   });
 });

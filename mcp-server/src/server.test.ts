@@ -88,9 +88,9 @@ describe("getToolSchemas", () => {
     const schemas = getToolSchemas();
     const schemaNames = schemas.map((s) => s.name);
 
-    for (const toolName of ALL_TOOL_NAMES) {
-      expect(schemaNames).toContain(toolName);
-    }
+    expect(schemaNames).toEqual(expect.arrayContaining([...ALL_TOOL_NAMES]));
+    expect(new Set(schemaNames)).toHaveProperty("size", ALL_TOOL_NAMES.length);
+    expect(schemaNames).toHaveLength(ALL_TOOL_NAMES.length);
   });
 
   it("every schema has name, description, and inputSchema", () => {
@@ -262,7 +262,7 @@ describe("getToolSchemas", () => {
   });
 
   it("advertises markdown_render safe text and file inputs", () => {
-    const schema = schemaFor("markdown_render");
+    const schema = schemaFor(TOOL_NAMES.MARKDOWN_RENDER);
     expect(schema.description).toMatch(/markdown/i);
     expect(schema.inputSchema.required ?? []).toEqual([]);
     expect(schema.inputSchema.properties).toEqual(
@@ -285,6 +285,33 @@ describe("getToolSchemas", () => {
         }),
       })
     );
+  });
+
+  it("advertises markdown_render safe defaults explicitly", () => {
+    const schema = schemaFor(TOOL_NAMES.MARKDOWN_RENDER);
+
+    expect(schema.description).toMatch(/safe html/i);
+    expect(schema.description).toMatch(/raw html is disabled by default/i);
+    expect(schema.inputSchema.properties).toMatchObject({
+      allowRawHtml: {
+        type: "boolean",
+        description: expect.stringMatching(/disabled by default/i),
+      },
+    });
+    expect(schema.inputSchema.properties).not.toHaveProperty("sanitize");
+  });
+
+  it("advertises the workspace and markdown foundation tools from shared constants", () => {
+    const foundationToolNames = [
+      TOOL_NAMES.MARKDOWN_RENDER,
+      TOOL_NAMES.WORKSPACE_LIST_FILES,
+      TOOL_NAMES.WORKSPACE_READ_FILE,
+    ];
+
+    for (const toolName of foundationToolNames) {
+      expect(schemaFor(toolName).name).toBe(toolName);
+      expect(ALL_TOOL_NAMES).toContain(toolName);
+    }
   });
 
   it("advertises workspace_list_files selected-workspace inputs", () => {
@@ -310,6 +337,27 @@ describe("getToolSchemas", () => {
     );
   });
 
+  it("advertises workspace_list_files bounded lazy tree controls", () => {
+    const schema = schemaFor(TOOL_NAMES.WORKSPACE_LIST_FILES);
+
+    expect(schema.description).toMatch(/file system access permission/i);
+    expect(schema.inputSchema.required ?? []).toEqual([]);
+    expect(schema.inputSchema.properties).toMatchObject({
+      path: {
+        type: "string",
+        description: expect.stringMatching(/defaults to the workspace root/i),
+      },
+      depth: {
+        type: "number",
+        description: expect.stringMatching(/maximum recursive directory depth/i),
+      },
+      limit: {
+        type: "number",
+        description: expect.stringMatching(/maximum number of entries/i),
+      },
+    });
+  });
+
   it("advertises workspace_read_file selected-workspace inputs", () => {
     const schema = schemaFor(TOOL_NAMES.WORKSPACE_READ_FILE);
     expect(schema.description).toMatch(/selected.*workspace/i);
@@ -331,6 +379,29 @@ describe("getToolSchemas", () => {
         }),
       })
     );
+  });
+
+  it("advertises workspace_read_file text-only bounded reads", () => {
+    const schema = schemaFor(TOOL_NAMES.WORKSPACE_READ_FILE);
+
+    expect(schema.description).toMatch(/text-like file/i);
+    expect(schema.description).toMatch(/file system access permission/i);
+    expect(schema.inputSchema.required).toEqual(["path"]);
+    expect(schema.inputSchema.properties).toMatchObject({
+      path: {
+        type: "string",
+        description: expect.stringMatching(/workspace-relative path/i),
+      },
+      limit: {
+        type: "number",
+        description: expect.stringMatching(/maximum number of characters/i),
+      },
+      encoding: {
+        type: "string",
+        enum: ["utf-8"],
+        description: expect.stringMatching(/defaults to utf-8/i),
+      },
+    });
   });
 });
 

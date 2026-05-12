@@ -37,6 +37,43 @@ describe("workspace permissions", () => {
     expect(result.ok && result.value.canRequest).toBe(true);
   });
 
+  it("guides users to reselect the workspace when lost permission cannot be requested", async () => {
+    const handle = createHandle({
+      queryPermission: vi.fn().mockResolvedValue("denied"),
+    });
+
+    const result = await queryWorkspacePermission(handle);
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        state: "denied",
+        action: "select-workspace",
+        canRequest: false,
+        message: "Workspace access was denied. Ask the user to select the workspace folder again.",
+      },
+    });
+  });
+
+  it("guides users to grant access again when restored handles return prompt", async () => {
+    const handle = createHandle({
+      queryPermission: vi.fn().mockResolvedValue("prompt"),
+      requestPermission: vi.fn().mockResolvedValue("granted"),
+    });
+
+    const result = await queryWorkspacePermission(handle);
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        state: "prompt",
+        action: "request-permission",
+        canRequest: true,
+        message: "Workspace access needs to be restored. Ask the user to grant access again.",
+      },
+    });
+  });
+
   it("requests permission only through requestPermission", async () => {
     const requestPermission = vi.fn().mockResolvedValue("prompt");
     const result = await requestWorkspacePermission(createHandle({ requestPermission }), { mode: "readwrite" });

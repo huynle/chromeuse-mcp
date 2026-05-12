@@ -36,4 +36,29 @@ describe("createDocumentViewerModel", () => {
     expect(largePdf.viewer).toBe("placeholder");
     expect(largePdf.constraints).toContain("Large file preview is limited to protect side panel performance.");
   });
+
+  it("routes text files to a placeholder instead of unsafe inline preview", () => {
+    const model = createDocumentViewerModel({
+      name: "notes.txt",
+      contentText: "plain text",
+      mimeType: "text/plain",
+    });
+
+    expect(model.viewer).toBe("placeholder");
+    expect(model.kind).toBe("text");
+    expect(model.bodyHtml).toBe("");
+    expect(model.message).toContain("future work");
+  });
+
+  it("keeps markdown document viewer HTML safe by default", () => {
+    const model = createDocumentViewerModel({
+      name: "README.md",
+      contentText: "# Safe\n\n<script>alert(1)</script>\n\n[bad](javascript:alert(1))",
+    });
+
+    expect(model.viewer).toBe("markdown-preview");
+    expect(model.bodyHtml).toContain("&lt;script&gt;");
+    expect(model.bodyHtml).not.toContain("<script>");
+    expect(model.bodyHtml).not.toContain("href=");
+  });
 });

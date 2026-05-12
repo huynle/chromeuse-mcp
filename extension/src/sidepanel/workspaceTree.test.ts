@@ -74,4 +74,24 @@ describe("workspace tree", () => {
       children: [{ kind: "directory", name: "src", path: "/src", depth: 1, canLoadChildren: false }],
     });
   });
+
+  it("does not enumerate directories at the configured max depth", async () => {
+    const root = directory("workspace", [file("hidden.md")]);
+
+    const result = await readWorkspaceDirectory(root, "/", 0, { maxDepth: 0, maxEntriesPerDirectory: 10 });
+
+    expect(result).toEqual({ ok: true, value: { path: "/", depth: 0, entries: [], truncated: false } });
+  });
+
+  it("normalizes invalid entry limits to at least one entry", async () => {
+    const root = directory("workspace", [file("a.md"), file("b.md")]);
+
+    const result = await readWorkspaceDirectory(root, "/", 0, { maxDepth: 1, maxEntriesPerDirectory: 0 });
+
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.value.entries).toEqual([
+      { kind: "file", name: "a.md", path: "/a.md", depth: 1, canLoadChildren: false },
+    ]);
+    expect(result.ok && result.value.truncated).toBe(true);
+  });
 });
