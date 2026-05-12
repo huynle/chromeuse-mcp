@@ -25,9 +25,11 @@ import { ResizeTool } from "./resize.js";
 import { TabsCloseTool } from "./tabsClose.js";
 import { TabsContextTool } from "./tabsContext.js";
 import { TabsCreateTool } from "./tabsCreate.js";
+import { WorkspaceListTool } from "./workspaceList.js";
+import { WorkspaceReadTool } from "./workspaceRead.js";
 
 /**
- * Register all 15 tool handlers (plus GIF creator) with the message router.
+ * Register all tool handlers with the message router.
  *
  * Each handler implements {@link ToolHandler} and is registered under its
  * canonical name from {@link TOOL_NAMES}.
@@ -49,6 +51,8 @@ export function registerTools(router: MessageRouter): void {
   router.register(TOOL_NAMES.TABS_CLOSE, new TabsCloseTool());
   router.register(TOOL_NAMES.TABS_CONTEXT, new TabsContextTool());
   router.register(TOOL_NAMES.TABS_CREATE, new TabsCreateTool());
+  router.register(TOOL_NAMES.WORKSPACE_LIST_FILES, new WorkspaceListTool());
+  router.register(TOOL_NAMES.WORKSPACE_READ_FILE, new WorkspaceReadTool());
 
   console.log(
     "[Tools] Registered:",

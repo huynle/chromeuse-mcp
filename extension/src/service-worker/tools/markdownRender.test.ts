@@ -1,8 +1,15 @@
 import { TOOL_NAMES } from "@chromeuse/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MessageRouter } from "../messageRouter.js";
+import type { ToolResult } from "../../types/messages.js";
 import { MarkdownRenderTool } from "./markdownRender.js";
 import { registerTools } from "./index.js";
+
+function resultText(result: ToolResult): string {
+  const block = result.content[0];
+  if (block.type !== "text") throw new Error("Expected text result");
+  return block.text;
+}
 
 describe("MarkdownRenderTool", () => {
   beforeEach(() => {
@@ -18,7 +25,7 @@ describe("MarkdownRenderTool", () => {
     );
 
     expect(result.success).toBe(true);
-    const payload = JSON.parse(result.content[0].text);
+    const payload = JSON.parse(resultText(result));
     expect(payload).toEqual({
       html: expect.stringContaining("<h1>Title</h1>"),
       source: { type: "markdown" },
@@ -40,7 +47,7 @@ describe("MarkdownRenderTool", () => {
     );
 
     expect(result.success).toBe(false);
-    expect(result.content[0].text).toContain("Raw HTML rendering is unsupported");
+    expect(resultText(result)).toContain("Raw HTML rendering is unsupported");
   });
 
   it("renders markdown fetched from a browser-accessible URL", async () => {
@@ -57,7 +64,7 @@ describe("MarkdownRenderTool", () => {
 
     expect(result.success).toBe(true);
     expect(fetchMock).toHaveBeenCalledWith("file:///tmp/doc.md");
-    const payload = JSON.parse(result.content[0].text);
+    const payload = JSON.parse(resultText(result));
     expect(payload.html).toContain("<h2>From file</h2>");
     expect(payload.source).toEqual({
       type: "filePath",
@@ -75,9 +82,9 @@ describe("MarkdownRenderTool", () => {
     const result = await tool.execute({ filePath: "/tmp/doc.md" }, {});
 
     expect(result.success).toBe(false);
-    expect(result.content[0].text).toContain("Unable to read markdown from filePath");
-    expect(result.content[0].text).toContain("browser-accessible URL");
-    expect(result.content[0].text).toContain("side panel");
+    expect(resultText(result)).toContain("Unable to read markdown from filePath");
+    expect(resultText(result)).toContain("browser-accessible URL");
+    expect(resultText(result)).toContain("side panel");
   });
 
   it("requires exactly one markdown source", async () => {
@@ -90,9 +97,9 @@ describe("MarkdownRenderTool", () => {
     );
 
     expect(missing.success).toBe(false);
-    expect(missing.content[0].text).toContain("Provide exactly one markdown source");
+    expect(resultText(missing)).toContain("Provide exactly one markdown source");
     expect(conflicting.success).toBe(false);
-    expect(conflicting.content[0].text).toContain("Provide exactly one markdown source");
+    expect(resultText(conflicting)).toContain("Provide exactly one markdown source");
   });
 
   it("registers the markdown_render handler", () => {
