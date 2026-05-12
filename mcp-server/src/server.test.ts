@@ -79,9 +79,9 @@ describe("getToolSchemas", () => {
     expect(schema.inputSchema.required).toContain(property);
   };
 
-  it("returns exactly 16 tool schemas", () => {
+  it("returns exactly 18 tool schemas", () => {
     const schemas = getToolSchemas();
-    expect(schemas).toHaveLength(16);
+    expect(schemas).toHaveLength(18);
   });
 
   it("includes all tool names from shared constants", () => {
@@ -286,6 +286,52 @@ describe("getToolSchemas", () => {
       })
     );
   });
+
+  it("advertises workspace_list_files selected-workspace inputs", () => {
+    const schema = schemaFor(TOOL_NAMES.WORKSPACE_LIST_FILES);
+    expect(schema.description).toMatch(/selected.*workspace/i);
+    expect(schema.description).toMatch(/permission/i);
+    expect(schema.inputSchema.required ?? []).toEqual([]);
+    expect(schema.inputSchema.properties).toEqual(
+      expect.objectContaining({
+        path: expect.objectContaining({
+          type: "string",
+          description: expect.stringMatching(/workspace-relative/i),
+        }),
+        depth: expect.objectContaining({
+          type: "number",
+          description: expect.stringMatching(/depth/i),
+        }),
+        limit: expect.objectContaining({
+          type: "number",
+          description: expect.stringMatching(/maximum/i),
+        }),
+      })
+    );
+  });
+
+  it("advertises workspace_read_file selected-workspace inputs", () => {
+    const schema = schemaFor(TOOL_NAMES.WORKSPACE_READ_FILE);
+    expect(schema.description).toMatch(/selected.*workspace/i);
+    expect(schema.description).toMatch(/permission/i);
+    expect(schema.inputSchema.required).toEqual(["path"]);
+    expect(schema.inputSchema.properties).toEqual(
+      expect.objectContaining({
+        path: expect.objectContaining({
+          type: "string",
+          description: expect.stringMatching(/workspace-relative/i),
+        }),
+        limit: expect.objectContaining({
+          type: "number",
+          description: expect.stringMatching(/maximum/i),
+        }),
+        encoding: expect.objectContaining({
+          type: "string",
+          enum: ["utf-8"],
+        }),
+      })
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -317,9 +363,9 @@ describe("createMcpServer", () => {
     await server.close();
   });
 
-  it("lists all 16 tools via MCP protocol", async () => {
+  it("lists all 18 tools via MCP protocol", async () => {
     const result = await client.listTools();
-    expect(result.tools).toHaveLength(16);
+    expect(result.tools).toHaveLength(18);
   });
 
   it("tool names match shared constants", async () => {

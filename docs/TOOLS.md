@@ -232,6 +232,34 @@ The unified workspace/document foundation extends ChromeUse without bundling the
 
 Workspace tools expose the selected local folder to trusted MCP clients after the user grants access in the side panel.
 
+### `workspace_list_files`
+
+Lists files and directories below the workspace folder selected in the ChromeUse side panel.
+
+Inputs:
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `path` | string | no | Workspace-relative directory path. Defaults to the workspace root. |
+| `depth` | number | no | Maximum recursive directory depth. Defaults to 1. |
+| `limit` | number | no | Maximum entries to return before truncating the listing. |
+
+Requires a selected workspace and current Chromium File System Access permission. Missing selection, revoked permission, unsupported browser APIs, inaccessible paths, and truncated listings should produce actionable messages.
+
+### `workspace_read_file`
+
+Reads a text-like file from the workspace folder selected in the ChromeUse side panel.
+
+Inputs:
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `path` | string | yes | Workspace-relative file path to read. |
+| `limit` | number | no | Maximum characters to return before truncating file content. |
+| `encoding` | `utf-8` | no | Text encoding for the read operation. Defaults to `utf-8`. |
+
+Requires a selected workspace and current Chromium File System Access permission. Missing selection, revoked permission, unsupported browser APIs, unreadable files, binary files, large files, and truncated reads should produce actionable messages.
+
 Expected foundation capabilities:
 
 | Capability | Description |

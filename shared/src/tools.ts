@@ -39,6 +39,10 @@ export const TOOL_NAMES = {
   GIF_CREATOR: "gif_creator",
   /** Render markdown text or accessible workspace file content */
   MARKDOWN_RENDER: "markdown_render",
+  /** List files and directories in the selected workspace */
+  WORKSPACE_LIST_FILES: "workspace_list_files",
+  /** Read text content from a file in the selected workspace */
+  WORKSPACE_READ_FILE: "workspace_read_file",
 } as const;
 
 /** Union type of all valid tool name strings */

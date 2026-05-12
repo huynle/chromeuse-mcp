@@ -508,6 +508,56 @@ const TOOL_SCHEMAS: Tool[] = [
       },
     },
   },
+  {
+    name: TOOL_NAMES.WORKSPACE_LIST_FILES,
+    description:
+      "List files and directories under the workspace selected in the ChromeUse side panel. Requires current File System Access permission for the selected workspace.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description:
+            "Workspace-relative directory path to list. Defaults to the workspace root.",
+        },
+        depth: {
+          type: "number",
+          description:
+            "Maximum recursive directory depth to include. Defaults to 1.",
+        },
+        limit: {
+          type: "number",
+          description:
+            "Maximum number of entries to return before truncating the listing.",
+        },
+      },
+    },
+  },
+  {
+    name: TOOL_NAMES.WORKSPACE_READ_FILE,
+    description:
+      "Read a text-like file from the workspace selected in the ChromeUse side panel. Requires current File System Access permission for the selected workspace.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description: "Workspace-relative path to the file to read.",
+        },
+        limit: {
+          type: "number",
+          description:
+            "Maximum number of characters to return before truncating file content.",
+        },
+        encoding: {
+          type: "string",
+          enum: ["utf-8"],
+          description: "Text encoding to use when reading the file. Defaults to utf-8.",
+        },
+      },
+      required: ["path"],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
