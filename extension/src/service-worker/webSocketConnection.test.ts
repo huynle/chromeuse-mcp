@@ -103,6 +103,20 @@ describe("WebSocketConnection", () => {
       conn.connect("ws://127.0.0.1:9999");
       expect(latestSocket().url).toBe("ws://127.0.0.1:9999");
     });
+
+    it("replaces an active socket without scheduling an extra reconnect", () => {
+      const conn = freshConnection();
+      conn.connect();
+      const firstSocket = latestSocket();
+      firstSocket.open();
+
+      conn.connect("ws://127.0.0.1:8766");
+      expect(firstSocket.close).toHaveBeenCalledOnce();
+      expect(latestSocket().url).toBe("ws://127.0.0.1:8766");
+
+      vi.advanceTimersByTime(1000);
+      expect(sockets).toHaveLength(2);
+    });
   });
 
   describe("disconnect", () => {

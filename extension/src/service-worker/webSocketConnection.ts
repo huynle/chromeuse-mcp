@@ -38,7 +38,9 @@ export class WebSocketConnection {
       (this.socket.readyState === WebSocket.OPEN ||
         this.socket.readyState === WebSocket.CONNECTING)
     ) {
-      this.socket.close();
+      const socket = this.socket;
+      this.socket = null;
+      socket.close();
     }
 
     this.setStatus("connecting");
@@ -57,13 +59,13 @@ export class WebSocketConnection {
       };
 
       socket.onerror = () => {
+        if (this.socket !== socket) return;
         this.setStatus("error");
       };
 
       socket.onclose = () => {
-        if (this.socket === socket) {
-          this.socket = null;
-        }
+        if (this.socket !== socket) return;
+        this.socket = null;
         this.setStatus("disconnected");
         this.scheduleReconnect();
       };
