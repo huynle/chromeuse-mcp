@@ -13,6 +13,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { TOOL_NAMES } from "@chromeuse/shared";
 import { SocketClient } from "./socketClient.js";
+import type { BrowserTransport } from "./transport.js";
 
 // ---------------------------------------------------------------------------
 // Tool schema definitions
@@ -411,11 +412,11 @@ const TOOL_SCHEMAS: Tool[] = [
  * The server registers all tool schemas and forwards tool/call requests
  * to the Chrome extension via the native host socket.
  *
- * @param socketClient - Optional pre-configured socket client (for testing).
+ * @param socketClient - Optional pre-configured browser transport (for testing).
  *   If not provided, the server will create one and attempt to connect.
  */
 export async function createMcpServer(
-  socketClient?: SocketClient
+  socketClient?: BrowserTransport
 ): Promise<Server> {
   const server = new Server(
     { name: "chromeuse-mcp", version: "0.1.0" },

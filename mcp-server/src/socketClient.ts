@@ -19,8 +19,8 @@ import {
   decode,
   type ToolRequest,
   type ToolResponse,
-  type ContentBlock,
 } from "@chromeuse/shared";
+import type { BrowserTransport, ToolRequestResult } from "./transport.js";
 
 /** Default timeout for tool requests (60 seconds) */
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -44,7 +44,7 @@ export interface SocketClientEvents {
  * The client discovers an active native host socket, connects, and provides
  * a request/response interface for forwarding MCP tool calls.
  */
-export class SocketClient {
+export class SocketClient implements BrowserTransport {
   private socket: Socket | null = null;
   private buffer = new Uint8Array(0);
   private pendingRequests = new Map<string, PendingRequest>();
@@ -161,7 +161,7 @@ export class SocketClient {
     tool: string,
     args: Record<string, unknown>,
     timeoutMs: number = DEFAULT_TIMEOUT_MS
-  ): Promise<{ content: readonly ContentBlock[]; isError?: boolean }> {
+  ): Promise<ToolRequestResult> {
     if (!this.socket || !this._connected) {
       throw new Error("Not connected to native host");
     }
@@ -175,51 +175,49 @@ export class SocketClient {
 
     const encoded = encode(request);
 
-    return new Promise<{ content: readonly ContentBlock[]; isError?: boolean }>(
-      (resolve, reject) => {
-        const timer = setTimeout(() => {
+    return new Promise<ToolRequestResult>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pendingRequests.delete(requestId);
+        reject(new Error(`Tool request timed out after ${timeoutMs}ms: ${tool}`));
+      }, timeoutMs);
+
+      const pending: PendingRequest = {
+        timer,
+        resolve: (response: ToolResponse) => {
           this.pendingRequests.delete(requestId);
-          reject(new Error(`Tool request timed out after ${timeoutMs}ms: ${tool}`));
-        }, timeoutMs);
+          clearTimeout(timer);
 
-        const pending: PendingRequest = {
-          timer,
-          resolve: (response: ToolResponse) => {
-            this.pendingRequests.delete(requestId);
-            clearTimeout(timer);
+          if (response.error) {
+            resolve({
+              content: response.error.content,
+              isError: true,
+            });
+          } else if (response.result) {
+            resolve({
+              content: response.result.content,
+            });
+          } else {
+            resolve({
+              content: [{ type: "text", text: "Empty response from extension" }],
+              isError: true,
+            });
+          }
+        },
+        reject: (error: Error) => {
+          this.pendingRequests.delete(requestId);
+          clearTimeout(timer);
+          reject(error);
+        },
+      };
 
-            if (response.error) {
-              resolve({
-                content: response.error.content,
-                isError: true,
-              });
-            } else if (response.result) {
-              resolve({
-                content: response.result.content,
-              });
-            } else {
-              resolve({
-                content: [{ type: "text", text: "Empty response from extension" }],
-                isError: true,
-              });
-            }
-          },
-          reject: (error: Error) => {
-            this.pendingRequests.delete(requestId);
-            clearTimeout(timer);
-            reject(error);
-          },
-        };
+      this.pendingRequests.set(requestId, pending);
 
-        this.pendingRequests.set(requestId, pending);
-
-        try {
-          this.socket?.write(encoded);
-        } catch (error) {
-          pending.reject(error instanceof Error ? error : new Error(String(error)));
-        }
+      try {
+        this.socket?.write(encoded);
+      } catch (error) {
+        pending.reject(error instanceof Error ? error : new Error(String(error)));
       }
-    );
+    });
   }
 
   /**

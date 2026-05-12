@@ -17,11 +17,13 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@chromeuse/shared": "*",
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "@chromeuse/shared": "*"
+    "ws": "^8.20.1"
   },
   "devDependencies": {
     "@types/node": "^25.5.2",
+    "@types/ws": "^8.18.1",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
   }
