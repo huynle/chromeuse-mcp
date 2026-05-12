@@ -32,6 +32,30 @@ function waitForMessage(socket: WebSocket): Promise<Record<string, unknown>> {
   });
 }
 
+function createMessageReader(socket: WebSocket): () => Promise<Record<string, unknown>> {
+  const queue: Record<string, unknown>[] = [];
+  const waiting: Array<(message: Record<string, unknown>) => void> = [];
+
+  socket.on("message", (data) => {
+    const message = JSON.parse(data.toString()) as Record<string, unknown>;
+    const resolve = waiting.shift();
+    if (resolve) {
+      resolve(message);
+    } else {
+      queue.push(message);
+    }
+  });
+
+  return () => {
+    const message = queue.shift();
+    if (message) return Promise.resolve(message);
+
+    return new Promise((resolve) => {
+      waiting.push(resolve);
+    });
+  };
+}
+
 describe("WebSocketBridge", () => {
   const bridges: WebSocketBridge[] = [];
   const sockets: WebSocket[] = [];
@@ -114,6 +138,58 @@ describe("WebSocketBridge", () => {
     await expect(response).resolves.toEqual({
       content: [{ type: "text", text: "navigated" }],
     });
+  });
+
+  it("correlates concurrent requests by request_id", async () => {
+    const bridge = await createBridge();
+    const extension = await createExtension(bridge);
+    const readMessage = createMessageReader(extension);
+
+    const firstResponse = bridge.sendToolRequest("tabs_context", {});
+    const secondResponse = bridge.sendToolRequest("tabs_create", {
+      url: "https://example.com",
+    });
+
+    const firstRequest = await readMessage();
+    const secondRequest = await readMessage();
+    const firstRequestId = (firstRequest.params as Record<string, unknown>)
+      .request_id;
+    const secondRequestId = (secondRequest.params as Record<string, unknown>)
+      .request_id;
+
+    expect(firstRequestId).toEqual(expect.any(String));
+    expect(secondRequestId).toEqual(expect.any(String));
+    expect(secondRequestId).not.toBe(firstRequestId);
+
+    extension.send(
+      JSON.stringify({
+        type: "tool_response",
+        request_id: secondRequestId,
+        result: { content: [{ type: "text", text: "second" }] },
+      })
+    );
+    extension.send(
+      JSON.stringify({
+        type: "tool_response",
+        request_id: firstRequestId,
+        result: { content: [{ type: "text", text: "first" }] },
+      })
+    );
+
+    await expect(firstResponse).resolves.toEqual({
+      content: [{ type: "text", text: "first" }],
+    });
+    await expect(secondResponse).resolves.toEqual({
+      content: [{ type: "text", text: "second" }],
+    });
+  });
+
+  it("rejects tool requests when no extension is connected", async () => {
+    const bridge = await createBridge();
+
+    await expect(bridge.sendToolRequest("tabs_context", {})).rejects.toThrow(
+      "No extension connected to WebSocket bridge"
+    );
   });
 
   it("times out pending requests", async () => {

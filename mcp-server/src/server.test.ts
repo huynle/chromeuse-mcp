@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { WebSocket } from "ws";
 import {
   WebSocketFirstTransport,
   createMcpServer,
   getToolSchemas,
 } from "./server.js";
+import { WebSocketBridge } from "./webSocketBridge.js";
 import { TOOL_NAMES, ALL_TOOL_NAMES } from "@chromeuse/shared";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -36,6 +38,28 @@ function createTestTransport(options: { connected?: boolean } = {}): TestTranspo
       connected = false;
     }),
   };
+}
+
+function waitForOpen(socket: WebSocket): Promise<void> {
+  if (socket.readyState === WebSocket.OPEN) return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    socket.once("open", () => resolve());
+    socket.once("error", reject);
+  });
+}
+
+function waitForMessage(socket: WebSocket): Promise<Record<string, unknown>> {
+  return new Promise((resolve, reject) => {
+    socket.once("message", (data) => {
+      try {
+        resolve(JSON.parse(data.toString()) as Record<string, unknown>);
+      } catch (error) {
+        reject(error);
+      }
+    });
+    socket.once("error", reject);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -357,6 +381,60 @@ describe("createMcpServer", () => {
     await server.close();
 
     expect(mockSocketClient.disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes MCP callTool requests through the WebSocket bridge", async () => {
+    const bridge = new WebSocketBridge({ port: 0 });
+    await bridge.connect();
+
+    const extension = new WebSocket(`ws://127.0.0.1:${bridge.port}`);
+    await waitForOpen(extension);
+
+    const webSocketServer = await createMcpServer(bridge);
+    const webSocketClient = new Client(
+      { name: "websocket-test-client", version: "1.0.0" },
+      { capabilities: {} }
+    );
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    await Promise.all([
+      webSocketClient.connect(clientTransport),
+      webSocketServer.connect(serverTransport),
+    ]);
+
+    try {
+      const response = webSocketClient.callTool({
+        name: "navigate",
+        arguments: { action: "goto", url: "https://example.com" },
+      });
+
+      const request = await waitForMessage(extension);
+      expect(request).toMatchObject({
+        type: "tool_request",
+        method: "execute_tool",
+        params: {
+          request_id: expect.any(String),
+          tool: "navigate",
+          args: { action: "goto", url: "https://example.com" },
+        },
+      });
+
+      extension.send(
+        JSON.stringify({
+          type: "tool_response",
+          request_id: (request.params as Record<string, unknown>).request_id,
+          result: { content: [{ type: "text", text: "navigated" }] },
+        })
+      );
+
+      await expect(response).resolves.toEqual({
+        content: [{ type: "text", text: "navigated" }],
+      });
+    } finally {
+      await webSocketClient.close();
+      await webSocketServer.close();
+      if (extension.readyState === WebSocket.OPEN) extension.close();
+    }
   });
 });
 
