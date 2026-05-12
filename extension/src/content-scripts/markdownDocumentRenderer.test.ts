@@ -36,6 +36,17 @@ describe("markdown document renderer", () => {
     expect(model.html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
   });
 
+  it("renders mermaid fences as mermaid diagram containers", () => {
+    const model = createMarkdownDocumentModel(
+      "file:///Users/me/diagram.md",
+      "# Diagram\n\n```mermaid\nflowchart TD\n  A --> B\n```",
+    );
+
+    expect(model.html).toContain('class="mermaid"');
+    expect(model.html).toContain("flowchart TD");
+    expect(model.html).not.toContain("language-mermaid");
+  });
+
   it("extracts headings for a TOC side panel", () => {
     expect(extractMarkdownHeadings("# Title\n\n## Goal\n\n### Notes\n\n#### Hidden")).toEqual([
       { level: 1, text: "Title", id: "title" },

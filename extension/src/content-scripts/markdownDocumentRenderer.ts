@@ -1,3 +1,4 @@
+import mermaid from "mermaid";
 import { renderMarkdown } from "../sidepanel/markdownRenderer.js";
 
 export interface MarkdownDocumentModel {
@@ -1147,6 +1148,19 @@ function applyHeadingIds(content: HTMLElement, headings: readonly MarkdownHeadin
   }
 }
 
+function renderMermaidDiagrams(doc: Document, content: HTMLElement): void {
+  const diagrams = Array.from(content.querySelectorAll<HTMLElement>(".mermaid"));
+  if (!diagrams.length) return;
+
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: doc.body.classList.contains("chromeuse-theme-dark") ? "dark" : "default",
+  });
+  mermaid.run({ nodes: diagrams }).catch((error: unknown) => {
+    console.error("Mermaid rendering error:", error);
+  });
+}
+
 function createOptionsMenu(doc: Document): HTMLElement {
   const menu = doc.createElement("div");
   menu.className = "chromeuse-markdown-options-menu";
@@ -1265,6 +1279,7 @@ export function renderCurrentMarkdownDocument(doc: Document = document, url: str
   shell.append(main);
   doc.body.className = `${doc.body.className} chromeuse-markdown-document`.trim();
   doc.body.replaceChildren(createTopControls(doc, model.source), shell);
+  renderMermaidDiagrams(doc, content);
   return true;
 }
 
