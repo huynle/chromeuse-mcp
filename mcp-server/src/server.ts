@@ -1,7 +1,7 @@
 /**
  * MCP Server that exposes Chrome browser tools for ChromeUse MCP.
  *
- * Registers 15 tool schemas via the MCP protocol and forwards
+ * Registers 16 tool schemas via the MCP protocol and forwards
  * tool calls to the Chrome extension through WebSocket-first browser transport.
  */
 
@@ -476,6 +476,36 @@ const TOOL_SCHEMAS: Tool[] = [
         },
       },
       required: ["action", "tabId"],
+    },
+  },
+  {
+    name: TOOL_NAMES.MARKDOWN_RENDER,
+    description:
+      "Render markdown text or accessible workspace file content to safe HTML. Raw HTML is disabled by default.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        markdown: {
+          type: "string",
+          description:
+            "Markdown text to render. Provide this, filePath, or url.",
+        },
+        filePath: {
+          type: "string",
+          description:
+            "Workspace file path containing markdown to render when file access is available.",
+        },
+        url: {
+          type: "string",
+          description:
+            "Accessible file: or extension-accessible URL containing markdown to render when direct workspace file access is unavailable.",
+        },
+        allowRawHtml: {
+          type: "boolean",
+          description:
+            "Allow raw HTML in markdown input. Disabled by default; unsafe HTML is escaped unless explicitly enabled by the handler.",
+        },
+      },
     },
   },
 ];

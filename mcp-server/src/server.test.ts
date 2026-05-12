@@ -79,9 +79,9 @@ describe("getToolSchemas", () => {
     expect(schema.inputSchema.required).toContain(property);
   };
 
-  it("returns exactly 15 tool schemas", () => {
+  it("returns exactly 16 tool schemas", () => {
     const schemas = getToolSchemas();
-    expect(schemas).toHaveLength(15);
+    expect(schemas).toHaveLength(16);
   });
 
   it("includes all tool names from shared constants", () => {
@@ -260,6 +260,32 @@ describe("getToolSchemas", () => {
       tabIds: { type: "array", items: { type: "number" } },
     });
   });
+
+  it("advertises markdown_render safe text and file inputs", () => {
+    const schema = schemaFor("markdown_render");
+    expect(schema.description).toMatch(/markdown/i);
+    expect(schema.inputSchema.required ?? []).toEqual([]);
+    expect(schema.inputSchema.properties).toEqual(
+      expect.objectContaining({
+        markdown: expect.objectContaining({
+          type: "string",
+          description: expect.stringMatching(/markdown text/i),
+        }),
+        filePath: expect.objectContaining({
+          type: "string",
+          description: expect.stringMatching(/workspace file/i),
+        }),
+        url: expect.objectContaining({
+          type: "string",
+          description: expect.stringMatching(/accessible/i),
+        }),
+        allowRawHtml: expect.objectContaining({
+          type: "boolean",
+          description: expect.stringMatching(/disabled by default/i),
+        }),
+      })
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -291,9 +317,9 @@ describe("createMcpServer", () => {
     await server.close();
   });
 
-  it("lists all 15 tools via MCP protocol", async () => {
+  it("lists all 16 tools via MCP protocol", async () => {
     const result = await client.listTools();
-    expect(result.tools).toHaveLength(15);
+    expect(result.tools).toHaveLength(16);
   });
 
   it("tool names match shared constants", async () => {

@@ -252,13 +252,14 @@ Inputs:
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `markdown` | string | no | Markdown source text to render directly. |
-| `workspacePath` | string | no | Path to a markdown file inside the selected workspace. |
-| `mode` | string | no | Optional output mode when the implementation supports more than safe HTML. |
+| `filePath` | string | no | Browser-accessible file URL or workspace file path containing markdown, when file access is available. |
+| `url` | string | no | Browser-accessible URL containing markdown. |
+| `allowRawHtml` | boolean | no | Raw HTML rendering request. Unsupported by default for safety unless a sanitizer is available. |
 
 Behavior:
 
-- Exactly one source should be supplied: direct `markdown` text or a workspace file path.
-- Raw HTML is disabled or sanitized by default.
+- Exactly one source should be supplied: direct `markdown` text, `filePath`, or `url`.
+- Raw HTML is disabled by default; unsafe HTML is escaped rather than emitted as raw markup.
 - `.md`, `.mdx`, and `.markdown` files are the primary workspace file targets.
 - Missing workspace selection, permission loss, unsupported browser APIs, unreadable files, large files, and binary files should produce actionable error messages.
 - PDF, PowerPoint, Excel, and Word rendering is not implemented by this tool in the foundation phase.

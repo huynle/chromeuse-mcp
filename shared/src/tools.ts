@@ -37,6 +37,8 @@ export const TOOL_NAMES = {
   TABS_CLOSE: "tabs_close",
   /** Record browser actions as a GIF */
   GIF_CREATOR: "gif_creator",
+  /** Render markdown text or accessible workspace file content */
+  MARKDOWN_RENDER: "markdown_render",
 } as const;
 
 /** Union type of all valid tool name strings */
