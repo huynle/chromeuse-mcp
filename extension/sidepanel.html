@@ -24,6 +24,35 @@
     Start the MCP server, then click Connect to use WebSocket transport.
   </section>
 
+  <!-- Workspace folder selection -->
+  <section id="workspace-section" class="workspace-section">
+    <div class="workspace-header">
+      <h2>Workspace</h2>
+      <button id="workspace-pick-btn" class="workspace-pick-btn">Choose Folder</button>
+    </div>
+    <div id="workspace-message" class="workspace-message hidden" role="status"></div>
+    <div id="workspace-empty" class="workspace-empty">
+      Select a local folder to enable workspace document access.
+    </div>
+    <dl id="workspace-metadata" class="workspace-metadata hidden">
+      <div>
+        <dt>Folder</dt>
+        <dd id="workspace-folder-name">—</dd>
+      </div>
+      <div>
+        <dt>Selected</dt>
+        <dd id="workspace-selected-at">—</dd>
+      </div>
+      <div>
+        <dt>Permission</dt>
+        <dd id="workspace-permission">Unknown</dd>
+      </div>
+    </dl>
+  </section>
+
+  <!-- Workspace markdown preview (opened by workspace-tree integration events) -->
+  <section id="document-section" class="markdown-section hidden"></section>
+
   <!-- Tool execution history -->
   <section id="history-section">
     <h2>Tool History</h2>
