@@ -44,11 +44,34 @@ cdpManager.initialize().catch((err) => {
   console.error("[ServiceWorker] Failed to initialize CDP manager:", err);
 });
 
-// --- Native messaging connection ---
+// --- Browser transport connections ---
 
-// Forward native host connection status changes to side panel
-nativeMessaging.onConnectionStatusChange(setConnectionStatus);
-webSocketConnection.onConnectionStatusChange(setConnectionStatus);
+function syncBrowserTransportStatus(): void {
+  const websocketStatus = webSocketConnection.status;
+  const nativeStatus = nativeMessaging.status;
+
+  if (websocketStatus === "connected" || nativeStatus === "connected") {
+    setConnectionStatus("connected");
+    return;
+  }
+
+  if (websocketStatus === "connecting" || nativeStatus === "connecting") {
+    setConnectionStatus("connecting");
+    return;
+  }
+
+  if (websocketStatus === "error" || nativeStatus === "error") {
+    setConnectionStatus("error");
+    return;
+  }
+
+  setConnectionStatus("disconnected");
+}
+
+// Keep the side panel showing the combined state across WebSocket and native
+// messaging, so managed-Chrome native failures do not hide a live WebSocket.
+nativeMessaging.onConnectionStatusChange(syncBrowserTransportStatus);
+webSocketConnection.onConnectionStatusChange(syncBrowserTransportStatus);
 
 nativeMessaging.connect();
 
