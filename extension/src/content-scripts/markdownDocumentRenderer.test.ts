@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   createMarkdownDocumentModel,
+  extractMarkdownHeadings,
+  getParentDirectoryUrl,
+  parseDirectoryListing,
   shouldRenderMarkdownDocument,
 } from "./markdownDocumentRenderer.js";
 
@@ -24,5 +27,33 @@ describe("markdown document renderer", () => {
     expect(model.html).toContain("<h1>Title</h1>");
     expect(model.html).not.toContain("<script>");
     expect(model.html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+  });
+
+  it("extracts headings for a TOC side panel", () => {
+    expect(extractMarkdownHeadings("# Title\n\n## Goal\n\n### Notes\n\n#### Hidden")).toEqual([
+      { level: 1, text: "Title", id: "title" },
+      { level: 2, text: "Goal", id: "goal" },
+      { level: 3, text: "Notes", id: "notes" },
+    ]);
+  });
+
+  it("finds the parent directory for local markdown documents", () => {
+    expect(getParentDirectoryUrl("file:///Users/me/project/docs/README.md")).toBe("file:///Users/me/project/docs/");
+    expect(getParentDirectoryUrl("https://example.com/docs/README.md")).toBeNull();
+  });
+
+  it("parses Chrome file directory listings into markdown files and folders", () => {
+    const listing = `
+      <script>
+        addRow("guide.md", "guide.md", 0, "1 KB", "today");
+        addRow("notes.txt", "notes.txt", 0, "1 KB", "today");
+        addRow("specs", "specs/", 1, "", "today");
+      </script>
+    `;
+
+    expect(parseDirectoryListing(listing, "file:///Users/me/project/docs/")).toEqual([
+      { name: "specs", url: "file:///Users/me/project/docs/specs/", type: "directory" },
+      { name: "guide.md", url: "file:///Users/me/project/docs/guide.md", type: "file" },
+    ]);
   });
 });

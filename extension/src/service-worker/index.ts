@@ -38,6 +38,24 @@ registerTools(messageRouter);
 
 initSidePanelHandler();
 
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (!message || typeof message !== "object" || message.action !== "chromeuse_fetch_directory_listing") {
+    return false;
+  }
+
+  const url = typeof message.url === "string" ? message.url : "";
+  fetch(url)
+    .then(async (response) => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      sendResponse({ ok: true, html: await response.text() });
+    })
+    .catch((error) => {
+      sendResponse({ ok: false, error: error instanceof Error ? error.message : "Unable to load files" });
+    });
+
+  return true;
+});
+
 // --- CDP manager ---
 
 cdpManager.initialize().catch((err) => {
