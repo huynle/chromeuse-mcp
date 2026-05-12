@@ -42,6 +42,12 @@
       "js": ["dist/content-scripts/accessibilityTree.js"],
       "run_at": "document_idle",
       "all_frames": true
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["dist/content-scripts/markdownDocumentRenderer.js"],
+      "run_at": "document_idle",
+      "all_frames": false
     }
   ],
   "side_panel": {
