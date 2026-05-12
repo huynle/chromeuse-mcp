@@ -2,6 +2,87 @@
 
 This guide covers the most common setup and runtime issues.
 
+ChromeUse supports two local browser transports:
+
+- WebSocket Connect path: the MCP server listens on `ws://127.0.0.1:8765` by default, and the extension connects after you open the side panel and click **Connect**.
+- Native messaging fallback path: Chrome launches the native host after the extension ID is registered in the native messaging manifest.
+
+The **Connect** button is only for the localhost WebSocket transport. It is not a native messaging bypass and does not change Chrome native messaging policy.
+
+## MCP Server Is Not Running
+
+Symptoms:
+
+- The side panel stays disconnected or switches to error after clicking **Connect**.
+- MCP tool calls fail before reaching the browser.
+- No process is running `mcp-server/dist/index.js`.
+
+Checks:
+
+1. Restart your MCP client after adding the ChromeUse server config.
+2. Confirm the config uses `node` with an absolute path to `mcp-server/dist/index.js`.
+3. Confirm the repository has been built with `./scripts/build.sh`.
+
+The WebSocket bridge is created by the MCP server process. Opening the extension side panel alone does not start the MCP server.
+
+## Side Panel Connect Does Not Connect
+
+Symptoms:
+
+- Clicking **Connect** leaves the side panel in `Connecting` or `Connection Error`.
+- MCP errors mention `No extension connected`.
+
+Checks:
+
+1. Confirm your MCP client is running ChromeUse MCP.
+2. Confirm the browser extension is loaded in the same browser where you opened the side panel.
+3. Keep the side panel connection active while running tool calls.
+4. If you changed the WebSocket port, make sure the extension and MCP server use the same URL. The extension default is `ws://127.0.0.1:8765`.
+
+If native messaging is installed correctly, ChromeUse may still work through native messaging even when the side panel is disconnected. The Connect flow is for the WebSocket path.
+
+## WebSocket Port Is Already In Use
+
+Symptoms:
+
+- MCP tool calls fail with `WebSocket bridge port 8765 already in use on 127.0.0.1`.
+- Another local process is already listening on port `8765`.
+
+Fix:
+
+The side panel Connect flow expects the MCP server bridge on `127.0.0.1:8765` by default, so the simplest fix is to stop the other local process using port `8765`, then restart your MCP client.
+
+Advanced setups can set a different WebSocket port in the MCP client server environment:
+
+```json
+{
+  "mcpServers": {
+    "chromeuse": {
+      "command": "node",
+      "args": ["/absolute/path/to/chromeuse-mcp/mcp-server/dist/index.js"],
+      "env": {
+        "CHROMEUSE_WS_PORT": "8766"
+      }
+    }
+  }
+}
+```
+
+Restart the MCP client after changing the port. The extension must connect to the same WebSocket URL, so use the default port unless you have an extension build or configuration that matches the custom port.
+
+## No Extension Connected
+
+Symptoms:
+
+- MCP tool calls fail with `No extension connected. Open the ChromeUse side panel and click Connect, or keep a native host session running for fallback.`
+
+Checks:
+
+1. For WebSocket, open the side panel and click **Connect** after the MCP client has started the server.
+2. For native messaging fallback, confirm the native host manifest includes the current extension ID.
+3. Reload the extension after rebuilding or reinstalling.
+4. Restart the browser if Chrome has cached an old native messaging manifest.
+
 ## MCP Client Cannot Connect to the Native Host
 
 Symptoms:
@@ -18,6 +99,24 @@ Checks:
 5. Restart the MCP client.
 
 The first install often runs before you know the extension ID. That creates native messaging manifests with an empty `allowed_origins` list. Re-running the installer with the extension ID is required.
+
+If managed Chrome blocks native messaging, use the WebSocket Connect path when policy allows the extension to open `ws://127.0.0.1:8765`. Managed Chrome policy still controls the native messaging fallback path.
+
+## Managed Chrome Blocks Native Messaging
+
+Symptoms:
+
+- Native messaging works in an unmanaged Chromium browser but not in a managed Chrome profile.
+- Chrome policy blocks or ignores the user-level native messaging manifest.
+- Tool calls only work after using the side panel **Connect** button.
+
+Checks:
+
+1. Open `chrome://policy` and review native messaging policies for the managed profile.
+2. Ask your administrator to allow the `com.chromeuse.mcp_bridge` native messaging host if the native path is required.
+3. Confirm the extension ID in policy or the manifest matches the ID shown in `chrome://extensions`.
+
+Managed Chrome policy applies to native messaging. The side panel **Connect** button uses a localhost WebSocket path instead, but it still requires the MCP server process to be running locally and does not grant native messaging access.
 
 ## Wrong Extension ID Registered
 

@@ -2,7 +2,7 @@
 
 ChromeUse MCP gives AI assistants and other MCP clients direct, structured control of a real Chromium browser.
 
-It combines a Chrome extension, a local native messaging host, and a stdio MCP server so tools can inspect pages, click elements, fill forms, capture screenshots, monitor console and network activity, run page JavaScript, manage tabs, and record GIFs from the browser you actually use.
+It combines a Chrome extension, a stdio MCP server, a localhost WebSocket bridge, and an optional native messaging host so tools can inspect pages, click elements, fill forms, capture screenshots, monitor console and network activity, run page JavaScript, manage tabs, and record GIFs from the browser you actually use.
 
 ## Why Use It
 
@@ -35,20 +35,26 @@ MCP client
     |  MCP protocol over stdio
     v
 mcp-server
-    |  length-prefixed JSON over Unix domain socket
-    v
-native-host
-    |  Chrome Native Messaging over stdin/stdout
-    v
-Chrome extension
+    |\
+    | \  preferred: localhost WebSocket ws://127.0.0.1:8765
+    |  +---------------------------------------------+
+    |                                                v
+    |  fallback: length-prefixed JSON over Unix socket
+    v                                                |
+native-host                                          |
+    |  Chrome Native Messaging over stdin/stdout     |
+    v                                                |
+Chrome extension <-----------------------------------+
     |
-    +-- service worker: tool dispatch, CDP, tabs, native messaging
+    +-- service worker: tool dispatch, CDP, tabs, WebSocket, native messaging
     +-- content scripts: accessibility refs and automation indicator
     +-- side panel: connection status and tool history
     +-- offscreen document: GIF encoding
 ```
 
-The extension asks Chrome to launch the native host. The native host opens a Unix socket at `/tmp/chromeuse-browser-bridge-{user}/{pid}.sock`. The MCP server connects to that socket when a client makes a tool call, then forwards requests to the extension.
+The MCP server starts a localhost WebSocket bridge at `ws://127.0.0.1:8765` by default. Open the ChromeUse side panel and click **Connect** to attach the extension to that bridge. This Connect flow is for the localhost WebSocket transport; it is not a native messaging bypass and it still requires the MCP server to be running.
+
+Native messaging remains available as a fallback and for browsers or environments where it is preferred. In that path, the extension asks Chrome to launch the native host. The native host opens a Unix socket at `/tmp/chromeuse-browser-bridge-{user}/{pid}.sock`, and the MCP server connects to that socket when a client makes a tool call.
 
 For more implementation detail, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
@@ -125,10 +131,14 @@ Restart your MCP client after changing its config.
 
 ### 5. Verify the Connection
 
-1. Open a normal web page in the browser where the extension is loaded.
-2. Open the ChromeUse MCP side panel from the extension toolbar.
-3. Ask your MCP client to call `tabs_context`.
-4. Use one returned `tabId` with `read_page` or `computer` screenshot.
+1. Restart your MCP client so it starts `mcp-server/dist/index.js`.
+2. Open a normal web page in the browser where the extension is loaded.
+3. Open the ChromeUse MCP side panel from the extension toolbar.
+4. Click **Connect** to use the localhost WebSocket transport.
+5. Ask your MCP client to call `tabs_context`.
+6. Use one returned `tabId` with `read_page` or `computer` screenshot.
+
+The WebSocket bridge listens on `127.0.0.1:8765` by default. Keep that port free for the side panel Connect flow. Advanced setups can set `CHROMEUSE_WS_PORT=<port>` in the MCP client server environment, but the extension must connect to the same WebSocket URL. If you do not click **Connect**, ChromeUse can still use native messaging when the native host is installed and the extension ID is registered.
 
 If the server cannot connect, see [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
 
@@ -215,13 +225,14 @@ ChromeUse MCP intentionally gives local MCP clients powerful browser automation 
 - Tool calls can read page content, click buttons, type text, upload local files you specify, and execute JavaScript in pages.
 - The extension requests broad host permissions because it is designed to automate arbitrary pages.
 - Native messaging only allows registered extension IDs through Chrome's `allowed_origins` manifest field.
-- The MCP server communicates locally over stdio and a Unix socket; it does not expose an HTTP server.
+- The WebSocket bridge listens on localhost only and is intended for trusted local MCP clients.
+- The MCP server communicates with MCP clients over stdio; it does not expose an HTTP API.
 
 See [`SECURITY.md`](SECURITY.md) for reporting vulnerabilities and recommended safe usage.
 
 ## Troubleshooting
 
-Common issues are documented in [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md), including native host registration, extension IDs, browser reloads, and MCP client configuration.
+Common issues are documented in [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md), including the side panel Connect flow, WebSocket port conflicts, native host registration, extension IDs, browser reloads, and MCP client configuration.
 
 ## Contributing
 
