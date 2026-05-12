@@ -18,7 +18,7 @@ import {
   renderWorkspaceMarkdownFile,
   type WorkspaceMarkdownFile,
 } from "./markdownPreview.js";
-import { pickWorkspaceFolder } from "./workspacePanel.js";
+import { getWindowDirectoryPicker, pickWorkspaceFolder } from "./workspacePanel.js";
 import { queryWorkspacePermission, requestWorkspacePermission, type WorkspacePermissionRecovery } from "./workspacePermissions.js";
 import { loadSelectedDirectoryHandle, saveSelectedDirectoryHandle } from "./workspaceStorage.js";
 import { readWorkspaceDirectory, type WorkspaceTreeDirectory, type WorkspaceTreeNode } from "./workspaceTree.js";
@@ -745,8 +745,9 @@ workspacePickBtn.addEventListener("click", async () => {
 
   try {
     let pickedHandle: FileSystemDirectoryHandle | null = null;
-    const showDirectoryPicker = (window as Window & { showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle> })
-      .showDirectoryPicker;
+    const showDirectoryPicker = getWindowDirectoryPicker(
+      window as Window & { showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle> },
+    );
     const result = await pickWorkspaceFolder({
       showDirectoryPicker: showDirectoryPicker
         ? async () => {

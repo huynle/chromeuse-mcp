@@ -10,6 +10,10 @@ interface WorkspaceSelectionViewState {
 
 type DirectoryPicker = () => Promise<FileSystemDirectoryHandle>;
 
+type DirectoryPickerWindow = {
+  readonly showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
+};
+
 interface PermissionResult {
   readonly state: WorkspaceFolderSelection["permission"];
   readonly message?: string | null;
@@ -28,6 +32,11 @@ export interface LoadWorkspaceSelectionDependencies {
     WorkspaceResult<{ readonly handle: FileSystemDirectoryHandle; readonly metadata: WorkspaceFolderMetadata } | null>
   >;
   readonly queryWorkspacePermission: (handle: FileSystemDirectoryHandle) => Promise<WorkspaceResult<PermissionResult>>;
+}
+
+export function getWindowDirectoryPicker(windowLike: DirectoryPickerWindow): DirectoryPicker | undefined {
+  if (typeof windowLike.showDirectoryPicker !== "function") return undefined;
+  return () => windowLike.showDirectoryPicker!();
 }
 
 function success(value: WorkspaceSelectionViewState): WorkspaceResult<WorkspaceSelectionViewState> {

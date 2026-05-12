@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { loadWorkspaceSelection, pickWorkspaceFolder } from "./workspacePanel.js";
+import { getWindowDirectoryPicker, loadWorkspaceSelection, pickWorkspaceFolder } from "./workspacePanel.js";
 import type { WorkspaceFolderMetadata, WorkspaceResult } from "./workspaceTypes.js";
 
 function directoryHandle(name = "project"): FileSystemDirectoryHandle {
@@ -11,6 +11,21 @@ function metadata(name = "project"): WorkspaceFolderMetadata {
 }
 
 describe("workspace panel folder picking", () => {
+  it("calls the browser directory picker with the window receiver intact", async () => {
+    const handle = directoryHandle("workspace");
+    const pickerWindow = {
+      showDirectoryPicker: vi.fn(function (this: unknown) {
+        if (this !== pickerWindow) throw new TypeError("Illegal invocation");
+        return Promise.resolve(handle);
+      }),
+    };
+
+    const picker = getWindowDirectoryPicker(pickerWindow);
+
+    await expect(picker?.()).resolves.toBe(handle);
+    expect(pickerWindow.showDirectoryPicker).toHaveBeenCalledTimes(1);
+  });
+
   it("returns a clear fallback when directory picking is unsupported", async () => {
     const saveSelectedDirectoryHandle = vi.fn();
 
