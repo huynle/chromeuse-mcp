@@ -479,6 +479,29 @@ describe("createMcpServer", () => {
     ]);
   });
 
+  it("preserves the direct transport ToolRequestResult shape", async () => {
+    mockSocketClient.sendToolRequest.mockResolvedValue({
+      content: [{ type: "text", text: "Permission denied" }],
+      isError: true,
+      metadata: { requestId: "direct-transport" },
+    });
+
+    const result = await client.callTool({
+      name: "computer",
+      arguments: { action: "screenshot", tabId: 7 },
+    });
+
+    expect(mockSocketClient.sendToolRequest).toHaveBeenCalledWith("computer", {
+      action: "screenshot",
+      tabId: 7,
+    });
+    expect(result).toEqual({
+      content: [{ type: "text", text: "Permission denied" }],
+      isError: true,
+      metadata: { requestId: "direct-transport" },
+    });
+  });
+
   it("returns error when socket client throws", async () => {
     mockSocketClient.sendToolRequest.mockRejectedValue(new Error("Connection lost"));
 

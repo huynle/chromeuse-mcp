@@ -1,4 +1,6 @@
 import { EventEmitter } from "node:events";
+import { createServer as createHttpServer, type Server as NodeHttpServer } from "node:http";
+import { createServer as createNetServer } from "node:net";
 import { describe, expect, it, vi } from "vitest";
 import type { BrowserTransport, ToolRequestResult } from "@chromeuse/mcp-server";
 import { resolveGatewayConfig, startGateway } from "./gatewayRuntime.js";
@@ -14,6 +16,17 @@ class FakeBrowserTransport implements BrowserTransport {
   readonly disconnect = vi.fn(() => {
     this.connected = false;
   });
+}
+
+class Deferred<T> {
+  readonly promise: Promise<T>;
+  resolve!: (value: T) => void;
+
+  constructor() {
+    this.promise = new Promise<T>((resolve) => {
+      this.resolve = resolve;
+    });
+  }
 }
 
 class FakeHttpServer extends EventEmitter {
@@ -35,6 +48,43 @@ class FakeHttpServer extends EventEmitter {
     callback?.();
     return this;
   });
+}
+
+async function getUnusedPort(): Promise<number> {
+  const server = createNetServer();
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (typeof address !== "object" || address === null) {
+    throw new Error("Unable to allocate local test port");
+  }
+  const { port } = address;
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
+  return port;
+}
+
+async function closeNodeHttpServer(server: NodeHttpServer): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
+}
+
+async function startIncompatibleHealthServer(port: number): Promise<NodeHttpServer> {
+  const server = createHttpServer((_request, response) => {
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(
+      JSON.stringify({
+        gateway: "not-chromeuse-http-gateway",
+        version: "9.0.0",
+        protocol: "not-chromeuse-http-gateway",
+        protocolVersion: "9.0.0",
+        client_id: "incompatible-test-server",
+      })
+    );
+  });
+  await new Promise<void>((resolve) => server.listen(port, "127.0.0.1", resolve));
+  return server;
 }
 
 describe("gateway runtime", () => {
@@ -163,6 +213,64 @@ describe("gateway runtime", () => {
     expect(mcpServer.close).toHaveBeenCalledTimes(1);
   });
 
+  it("preserves FIFO ordering across local MCP and remote HTTP gateway requests", async () => {
+    const gatewayPort = await getUnusedPort();
+    const bridge = new FakeBrowserTransport();
+    const localDeferred = new Deferred<ToolRequestResult>();
+    const remoteDeferred = new Deferred<ToolRequestResult>();
+    bridge.sendToolRequest
+      .mockImplementationOnce(() => localDeferred.promise)
+      .mockImplementationOnce(() => remoteDeferred.promise);
+    let localTransport: BrowserTransport | undefined;
+    const runtime = await startGateway({
+      env: {
+        CHROMEUSE_GATEWAY_MODE: "server",
+        CHROMEUSE_HTTP_PORT: String(gatewayPort),
+        CHROMEUSE_CLIENT_ID: "fifo-runtime",
+      },
+      stderr: { write: vi.fn() },
+      createWebSocketBridge: vi.fn(() => bridge),
+      createMcpServerImpl: vi.fn(async (transport?: BrowserTransport) => {
+        localTransport = transport;
+        return { connect: vi.fn(async () => {}), close: vi.fn(async () => {}) };
+      }),
+      createStdioTransport: () => ({ kind: "stdio:fifo" }),
+    });
+
+    try {
+      if (!localTransport) throw new Error("local transport was not captured");
+
+      const local = localTransport.sendToolRequest("local-first", { order: 1 }, 111);
+      const remote = fetch(`http://127.0.0.1:${gatewayPort}/tool`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ tool: "remote-second", args: { order: 2 }, timeoutMs: 222 }),
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(bridge.sendToolRequest).toHaveBeenCalledTimes(1);
+      expect(bridge.sendToolRequest).toHaveBeenNthCalledWith(1, "local-first", { order: 1 }, 111);
+
+      localDeferred.resolve({ content: [{ type: "text", text: "local" }] });
+      await expect(local).resolves.toEqual({ content: [{ type: "text", text: "local" }] });
+
+      await vi.waitFor(() => {
+        expect(bridge.sendToolRequest).toHaveBeenCalledTimes(2);
+      });
+      expect(bridge.sendToolRequest).toHaveBeenNthCalledWith(2, "remote-second", { order: 2 }, 222);
+      remoteDeferred.resolve({ content: [{ type: "text", text: "remote" }] });
+      const remoteResponse = await remote;
+
+      expect(remoteResponse.status).toBe(200);
+      await expect(remoteResponse.json()).resolves.toEqual({
+        content: [{ type: "text", text: "remote" }],
+      });
+    } finally {
+      await runtime.close();
+    }
+  });
+
   it("becomes proxy after an existing compatible gateway owns the HTTP port without creating WebSocket bridge", async () => {
     const httpBindError = Object.assign(new Error("address already in use"), {
       code: "EADDRINUSE",
@@ -203,6 +311,119 @@ describe("gateway runtime", () => {
     await runtime.close();
     expect(proxyTransport.disconnect).toHaveBeenCalledTimes(1);
     expect(mcpServer.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("elects one real HTTP gateway server and proxies a second runtime through compatible /health", async () => {
+    const gatewayPort = await getUnusedPort();
+    const firstQueue = new FakeBrowserTransport();
+    const secondMcpServer = { connect: vi.fn(async () => {}), close: vi.fn(async () => {}) };
+    const firstRuntime = await startGateway({
+      env: {
+        CHROMEUSE_GATEWAY_MODE: "server",
+        CHROMEUSE_HTTP_PORT: String(gatewayPort),
+        CHROMEUSE_CLIENT_ID: "first-runtime",
+      },
+      stderr: { write: vi.fn() },
+      createWebSocketBridge: vi.fn(() => new FakeBrowserTransport()),
+      createQueueTransport: vi.fn(() => firstQueue),
+      createMcpServerImpl: vi.fn(async () => ({
+        connect: vi.fn(async () => {}),
+        close: vi.fn(async () => {}),
+      })),
+      createStdioTransport: () => ({ kind: "stdio:first" }),
+    });
+
+    let secondRuntime: Awaited<ReturnType<typeof startGateway>> | undefined;
+    try {
+      const secondBridgeFactory = vi.fn(() => new FakeBrowserTransport());
+      secondRuntime = await startGateway({
+        env: {
+          CHROMEUSE_GATEWAY_MODE: "server",
+          CHROMEUSE_HTTP_PORT: String(gatewayPort),
+          CHROMEUSE_CLIENT_ID: "second-runtime",
+        },
+        stderr: { write: vi.fn() },
+        createWebSocketBridge: secondBridgeFactory,
+        createMcpServerImpl: vi.fn(async () => secondMcpServer),
+        createStdioTransport: () => ({ kind: "stdio:second" }),
+      });
+
+      const healthResponse = await fetch(`http://127.0.0.1:${gatewayPort}/health`);
+
+      expect(firstRuntime.mode).toBe("server");
+      expect(secondRuntime.mode).toBe("proxy");
+      expect(secondRuntime.config.mode).toBe("proxy");
+      expect(secondBridgeFactory).not.toHaveBeenCalled();
+      expect(secondMcpServer.connect).toHaveBeenCalledWith({ kind: "stdio:second" });
+      await expect(healthResponse.json()).resolves.toMatchObject({
+        gateway: "chromeuse-http-gateway",
+        protocol: "chromeuse-http-gateway",
+        client_id: "first-runtime",
+      });
+    } finally {
+      await secondRuntime?.close();
+      await firstRuntime.close();
+    }
+  });
+
+  it("rejects proxy election against a real incompatible HTTP gateway health response", async () => {
+    const gatewayPort = await getUnusedPort();
+    const incompatibleServer = await startIncompatibleHealthServer(gatewayPort);
+    const createWebSocketBridge = vi.fn(() => new FakeBrowserTransport());
+
+    try {
+      await expect(
+        startGateway({
+          env: {
+            CHROMEUSE_GATEWAY_MODE: "server",
+            CHROMEUSE_HTTP_PORT: String(gatewayPort),
+          },
+          stderr: { write: vi.fn() },
+          createWebSocketBridge,
+          createMcpServerImpl: vi.fn(),
+          createStdioTransport: () => ({ kind: "stdio" }),
+        })
+      ).rejects.toThrow("did not pass compatible /health probe");
+
+      expect(createWebSocketBridge).not.toHaveBeenCalled();
+    } finally {
+      await closeNodeHttpServer(incompatibleServer);
+    }
+  });
+
+  it("releases the real HTTP port after partial server startup fails", async () => {
+    const gatewayPort = await getUnusedPort();
+    const queue = new FakeBrowserTransport();
+    queue.connect.mockRejectedValueOnce(new Error("WebSocket bridge unavailable"));
+
+    await expect(
+      startGateway({
+        env: {
+          CHROMEUSE_GATEWAY_MODE: "server",
+          CHROMEUSE_HTTP_PORT: String(gatewayPort),
+        },
+        stderr: { write: vi.fn() },
+        createWebSocketBridge: vi.fn(() => new FakeBrowserTransport()),
+        createQueueTransport: vi.fn(() => queue),
+        createMcpServerImpl: vi.fn(),
+        createStdioTransport: () => ({ kind: "stdio" }),
+      })
+    ).rejects.toThrow("HTTP listener closed");
+
+    const replacementServer = createHttpServer((_request, response) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ ok: true }));
+    });
+    await new Promise<void>((resolve) => replacementServer.listen(gatewayPort, "127.0.0.1", resolve));
+
+    try {
+      const response = await fetch(`http://127.0.0.1:${gatewayPort}/health`);
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({ ok: true });
+    } finally {
+      await closeNodeHttpServer(replacementServer);
+    }
   });
 
   it("closes HTTP immediately when WebSocket bridge connection fails after winning election", async () => {

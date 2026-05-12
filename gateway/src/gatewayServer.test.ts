@@ -68,6 +68,20 @@ describe("createGatewayServer", () => {
     });
   });
 
+  it("reports disconnected extension state from /health", async () => {
+    const transport = new FakeTransport();
+    transport.disconnect();
+    const { baseUrl } = await startServer(transport);
+
+    const response = await fetch(`${baseUrl}/health`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      gateway: "chromeuse-http-gateway",
+      extensionConnected: false,
+    });
+  });
+
   it("forwards POST /tool requests and returns the ToolRequestResult shape", async () => {
     const { baseUrl, transport } = await startServer();
     transport.sendToolRequest.mockResolvedValueOnce({

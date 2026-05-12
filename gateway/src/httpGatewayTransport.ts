@@ -111,10 +111,13 @@ export class HttpGatewayTransport implements BrowserTransport {
     }
 
     if (payload.error) {
-      return { content: payload.error.content, isError: true };
+      return { ...payload.error, isError: true };
     }
 
-    return { content: payload.result?.content ?? [] };
+    if (payload.result) return payload.result;
+    if (isToolRequestResult(payload)) return payload;
+
+    return { content: [] };
   }
 
   disconnect(): void {
@@ -141,4 +144,12 @@ function isCompatibleHealth(health: HealthResponse): boolean {
     typeof health.client_id === "string" &&
     health.client_id.length > 0
   );
+}
+
+function isToolRequestResult(value: unknown): value is ToolRequestResult {
+  return isRecord(value) && Array.isArray(value.content);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }

@@ -1,5 +1,51 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { AddressInfo } from "node:net";
+import type { Server } from "node:http";
+import type { BrowserTransport, ToolRequestResult } from "@chromeuse/mcp-server";
+import { createGatewayServer } from "./gatewayServer.js";
 import { HttpGatewayTransport } from "./httpGatewayTransport.js";
+
+class FakeTransport implements BrowserTransport {
+  connected = true;
+  readonly sendToolRequest = vi.fn(
+    async (
+      _tool: string,
+      _args: Record<string, unknown>,
+      _timeoutMs?: number
+    ): Promise<ToolRequestResult> => ({
+      content: [{ type: "text", text: "ok" }],
+    })
+  );
+
+  async connect(): Promise<void> {}
+
+  disconnect(): void {
+    this.connected = false;
+  }
+}
+
+const servers: Server[] = [];
+
+afterEach(async () => {
+  await Promise.all(
+    servers.splice(0).map(
+      (server) =>
+        new Promise<void>((resolve, reject) => {
+          server.close((error) => (error ? reject(error) : resolve()));
+        })
+    )
+  );
+});
+
+async function startRealGatewayServer(
+  transport = new FakeTransport()
+): Promise<{ readonly baseUrl: string; readonly transport: FakeTransport }> {
+  const server = createGatewayServer({ transport, clientId: "server-client" });
+  servers.push(server);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address() as AddressInfo;
+  return { baseUrl: `http://127.0.0.1:${address.port}`, transport };
+}
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -21,13 +67,53 @@ function compatibleHealth(overrides: Record<string, unknown> = {}): Record<strin
 }
 
 describe("HttpGatewayTransport", () => {
+  it("forwards through a real gateway server and preserves the raw ToolRequestResult shape", async () => {
+    const { baseUrl, transport: serverTransport } = await startRealGatewayServer();
+    serverTransport.sendToolRequest.mockResolvedValueOnce({
+      content: [{ type: "text", text: "proxied" }],
+      isError: true,
+      metadata: { requestId: "abc", source: "extension" },
+    });
+    const proxyTransport = new HttpGatewayTransport(baseUrl);
+
+    await proxyTransport.connect();
+    const result = await proxyTransport.sendToolRequest("tabs_context", { includeClosed: false }, 321);
+
+    expect(result).toEqual({
+      content: [{ type: "text", text: "proxied" }],
+      isError: true,
+      metadata: { requestId: "abc", source: "extension" },
+    });
+    expect(serverTransport.sendToolRequest).toHaveBeenCalledWith(
+      "tabs_context",
+      { includeClosed: false },
+      321
+    );
+  });
+
+  it("uses the requested timeout for both HTTP abort and forwarded gateway timeout", async () => {
+    const { baseUrl, transport: serverTransport } = await startRealGatewayServer();
+    serverTransport.sendToolRequest.mockImplementationOnce(
+      () => new Promise<ToolRequestResult>(() => {})
+    );
+    const proxyTransport = new HttpGatewayTransport(baseUrl);
+
+    await proxyTransport.connect();
+    await expect(proxyTransport.sendToolRequest("slow_tool", { tabId: 4 }, 5)).rejects.toThrow(
+      "Tool request timed out after 5ms: slow_tool"
+    );
+
+    expect(proxyTransport.connected).toBe(false);
+    expect(serverTransport.sendToolRequest).toHaveBeenCalledWith("slow_tool", { tabId: 4 }, 5);
+  });
+
   it("connects after compatible health and maps successful tool responses", async () => {
     const logger = vi.fn();
     const fetch = vi
       .fn<typeof globalThis.fetch>()
       .mockResolvedValueOnce(jsonResponse(compatibleHealth()))
       .mockResolvedValueOnce(
-        jsonResponse({ result: { content: [{ type: "text", text: "ok" }] } })
+        jsonResponse({ content: [{ type: "text", text: "ok" }], metadata: { requestId: "abc" } })
       );
     const transport = new HttpGatewayTransport("http://127.0.0.1:34123/", {
       fetch,
@@ -52,7 +138,10 @@ describe("HttpGatewayTransport", () => {
         body: JSON.stringify({ tool: "tabs_context", args: { tabId: 1 }, timeoutMs: 60_000 }),
       })
     );
-    expect(result).toEqual({ content: [{ type: "text", text: "ok" }] });
+    expect(result).toEqual({
+      content: [{ type: "text", text: "ok" }],
+      metadata: { requestId: "abc" },
+    });
     expect(logger).toHaveBeenCalledWith(expect.stringContaining("mode=PROXY event=request_start"));
     expect(logger).toHaveBeenCalledWith(
       expect.stringContaining("mode=PROXY event=request_end status=200")
@@ -75,12 +164,12 @@ describe("HttpGatewayTransport", () => {
     expect(logger).toHaveBeenCalledWith(expect.stringContaining("base_url=http://127.0.0.1:34123"));
   });
 
-  it("maps gateway tool error responses to MCP error results", async () => {
+  it("preserves raw gateway ToolRequestResult error responses", async () => {
     const fetch = vi
       .fn<typeof globalThis.fetch>()
       .mockResolvedValueOnce(jsonResponse(compatibleHealth()))
       .mockResolvedValueOnce(
-        jsonResponse({ error: { content: [{ type: "text", text: "bad tool" }] } })
+        jsonResponse({ content: [{ type: "text", text: "bad tool" }], isError: true, code: "bad_tool" })
       );
     const transport = new HttpGatewayTransport("http://127.0.0.1:34123", { fetch });
 
@@ -90,6 +179,7 @@ describe("HttpGatewayTransport", () => {
     expect(result).toEqual({
       content: [{ type: "text", text: "bad tool" }],
       isError: true,
+      code: "bad_tool",
     });
     expect(transport.connected).toBe(true);
   });
