@@ -209,7 +209,7 @@ export class WebSocketConnection {
       default:
         console.warn(
           "[WebSocketConnection] Unknown message type:",
-          (message as Record<string, unknown>).type,
+          (message as unknown as Record<string, unknown>).type,
         );
     }
   }

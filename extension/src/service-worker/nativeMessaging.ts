@@ -187,7 +187,7 @@ export class NativeMessagingConnection {
       default:
         console.warn(
           "[NativeMessaging] Unknown message type:",
-          (message as Record<string, unknown>).type,
+          (message as unknown as Record<string, unknown>).type,
         );
     }
   }
