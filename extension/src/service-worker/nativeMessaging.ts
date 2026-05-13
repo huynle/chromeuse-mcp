@@ -15,7 +15,6 @@ import type {
   ToolResult,
 } from "@chromeuse/shared";
 import type { ConnectionStatus } from "../types/messages.js";
-import { updateBadge } from "./badge.js";
 import { createToolResponse, handleToolRequest } from "./toolRequestHandler.js";
 
 /** Native messaging host name — must match the installed manifest JSON filename */
@@ -198,7 +197,6 @@ export class NativeMessagingConnection {
    */
   private setStatus(status: ConnectionStatus): void {
     this._status = status;
-    updateBadge(status);
     this.onStatusChange?.(status);
   }
 }

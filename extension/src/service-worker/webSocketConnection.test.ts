@@ -52,9 +52,12 @@ const chromeStub = {
   },
 };
 
+const fetchStub = vi.fn();
+
 Object.assign(globalThis, {
   chrome: chromeStub,
   WebSocket: MockWebSocket,
+  fetch: fetchStub,
 });
 
 const { WebSocketConnection } = await import("./webSocketConnection.js");
@@ -75,6 +78,7 @@ describe("WebSocketConnection", () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     sockets.length = 0;
+    fetchStub.mockRejectedValue(new Error("gateway unavailable"));
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
   });
 
@@ -96,6 +100,14 @@ describe("WebSocketConnection", () => {
       latestSocket().open();
       expect(conn.status).toBe("connected");
       expect(statuses).toEqual(["connecting", "connected"]);
+    });
+
+    it("does not update the action badge directly", () => {
+      const conn = freshConnection();
+      conn.connect();
+      latestSocket().open();
+      expect(chromeStub.action.setBadgeText).not.toHaveBeenCalled();
+      expect(chromeStub.action.setBadgeBackgroundColor).not.toHaveBeenCalled();
     });
 
     it("opens a caller-provided URL", () => {
@@ -251,6 +263,55 @@ describe("WebSocketConnection", () => {
 
       expect(conn.status).toBe("waiting");
       expect(statuses).toContain("waiting");
+    });
+
+    it("checks gateway health and reconnects from waiting when browser activity resumes", async () => {
+      const conn = freshConnection();
+      conn.connect();
+
+      for (let attempt = 0; attempt < 10; attempt++) {
+        latestSocket().serverClose();
+        vi.advanceTimersByTime(30_000);
+      }
+      latestSocket().serverClose();
+      expect(conn.status).toBe("waiting");
+
+      fetchStub.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            gateway: "chromeuse-http-gateway",
+            protocol: "chromeuse-http-gateway",
+            version: "1.0.0",
+            protocolVersion: "1.0.0",
+            client_id: "test-client",
+          }),
+      });
+
+      await expect(conn.recoverFromActivity()).resolves.toBe(true);
+
+      expect(fetchStub).toHaveBeenCalledWith("http://127.0.0.1:8766/health");
+      expect(latestSocket().url).toBe("ws://127.0.0.1:8765");
+      expect(conn.status).toBe("connecting");
+    });
+
+    it("stays waiting when activity recovery health check fails", async () => {
+      const conn = freshConnection();
+      conn.connect();
+
+      for (let attempt = 0; attempt < 10; attempt++) {
+        latestSocket().serverClose();
+        vi.advanceTimersByTime(30_000);
+      }
+      latestSocket().serverClose();
+      expect(conn.status).toBe("waiting");
+
+      fetchStub.mockResolvedValueOnce({ ok: false });
+
+      await expect(conn.recoverFromActivity()).resolves.toBe(false);
+
+      expect(fetchStub).toHaveBeenCalledWith("http://127.0.0.1:8766/health");
+      expect(conn.status).toBe("waiting");
     });
   });
 });

@@ -90,6 +90,13 @@ describe("NativeMessagingConnection", () => {
       expect(conn.status).toBe("connected");
     });
 
+    it("does not update the action badge directly", () => {
+      const conn = freshConnection();
+      conn.connect();
+      expect(chromeStub.action.setBadgeText).not.toHaveBeenCalled();
+      expect(chromeStub.action.setBadgeBackgroundColor).not.toHaveBeenCalled();
+    });
+
     it("creates keepalive alarm", () => {
       const conn = freshConnection();
       conn.connect();

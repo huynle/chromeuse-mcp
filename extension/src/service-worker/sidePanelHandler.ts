@@ -15,6 +15,7 @@ import type {
   SidePanelBroadcast,
   ToolExecutionEntry,
 } from "../types/messages.js";
+import { updateBadge } from "./badge.js";
 import { nativeMessaging } from "./nativeMessaging.js";
 import { webSocketConnection } from "./webSocketConnection.js";
 
@@ -36,6 +37,7 @@ let connectionStatus: ConnectionStatus = "disconnected";
  */
 export function setConnectionStatus(status: ConnectionStatus): void {
   connectionStatus = status;
+  updateBadge(status);
   broadcast({ type: "connection_status_changed", status });
 }
 
@@ -116,6 +118,9 @@ export function initSidePanelHandler(): void {
 
       switch (message.action) {
         case "sidepanel_get_state":
+          if (webSocketConnection.status === "waiting") {
+            void webSocketConnection.recoverFromActivity();
+          }
           sendResponse(getSidePanelState());
           return false; // synchronous response
 

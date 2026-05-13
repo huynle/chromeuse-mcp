@@ -85,4 +85,85 @@ describe("ComputerTool", () => {
       expect.objectContaining({ type: "mouseMoved", x: 50, y: 60 }),
     ]);
   });
+
+  it("dispatches CapsLock as a recognized keyboard key", async () => {
+    const tool = new ComputerTool();
+
+    const result = await tool.execute({ action: "key", tabId: 1, key: "CapsLock" }, {});
+
+    expect(result).toEqual({
+      success: true,
+      content: [{ type: "text", text: "Pressed key: CapsLock" }],
+    });
+
+    const keyCommands = sendCommand.mock.calls.filter(
+      ([, method]) => method === "Input.dispatchKeyEvent",
+    );
+    expect(keyCommands.map(([, , params]) => params)).toEqual([
+      expect.objectContaining({
+        type: "keyDown",
+        key: "CapsLock",
+        code: "CapsLock",
+        windowsVirtualKeyCode: 20,
+      }),
+      expect.objectContaining({
+        type: "keyUp",
+        key: "CapsLock",
+        code: "CapsLock",
+        windowsVirtualKeyCode: 20,
+      }),
+    ]);
+  });
+
+  it("uses shifted printable key text for letter shortcuts", async () => {
+    const tool = new ComputerTool();
+
+    await tool.execute({ action: "key", tabId: 1, key: "shift+a" }, {});
+
+    const keyDown = sendCommand.mock.calls.find(
+      ([, method, params]) => method === "Input.dispatchKeyEvent" && params.type === "keyDown",
+    )?.[2];
+
+    expect(keyDown).toEqual(expect.objectContaining({
+      key: "A",
+      code: "KeyA",
+      text: "A",
+      modifiers: 8,
+    }));
+  });
+
+  it("maps shifted digit punctuation and digit codes correctly", async () => {
+    const tool = new ComputerTool();
+
+    await tool.execute({ action: "key", tabId: 1, key: "shift+1" }, {});
+
+    const keyDown = sendCommand.mock.calls.find(
+      ([, method, params]) => method === "Input.dispatchKeyEvent" && params.type === "keyDown",
+    )?.[2];
+
+    expect(keyDown).toEqual(expect.objectContaining({
+      key: "!",
+      code: "Digit1",
+      text: "!",
+      windowsVirtualKeyCode: 49,
+      modifiers: 8,
+    }));
+  });
+
+  it("maps slash shortcuts to slash code instead of a letter code", async () => {
+    const tool = new ComputerTool();
+
+    await tool.execute({ action: "key", tabId: 1, key: "cmd+/" }, {});
+
+    const keyDown = sendCommand.mock.calls.find(
+      ([, method, params]) => method === "Input.dispatchKeyEvent" && params.type === "keyDown",
+    )?.[2];
+
+    expect(keyDown).toEqual(expect.objectContaining({
+      key: "/",
+      code: "Slash",
+      windowsVirtualKeyCode: 191,
+      modifiers: 4,
+    }));
+  });
 });

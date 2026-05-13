@@ -77,6 +77,8 @@ const KEY_DEFINITIONS: Record<
   esc: { key: "Escape", code: "Escape", keyCode: 27 },
   backspace: { key: "Backspace", code: "Backspace", keyCode: 8 },
   delete: { key: "Delete", code: "Delete", keyCode: 46 },
+  capslock: { key: "CapsLock", code: "CapsLock", keyCode: 20 },
+  caps: { key: "CapsLock", code: "CapsLock", keyCode: 20 },
   space: { key: " ", code: "Space", keyCode: 32, text: " " },
   arrowup: { key: "ArrowUp", code: "ArrowUp", keyCode: 38 },
   arrowdown: { key: "ArrowDown", code: "ArrowDown", keyCode: 40 },
@@ -102,6 +104,57 @@ const KEY_DEFINITIONS: Record<
   f10: { key: "F10", code: "F10", keyCode: 121 },
   f11: { key: "F11", code: "F11", keyCode: 122 },
   f12: { key: "F12", code: "F12", keyCode: 123 },
+};
+
+const DIGIT_SHIFT_KEYS: Record<string, string> = {
+  "1": "!",
+  "2": "@",
+  "3": "#",
+  "4": "$",
+  "5": "%",
+  "6": "^",
+  "7": "&",
+  "8": "*",
+  "9": "(",
+  "0": ")",
+};
+
+const PUNCTUATION_DEFINITIONS: Record<
+  string,
+  { key: string; shiftedKey: string; code: string; keyCode: number }
+> = {
+  "`": { key: "`", shiftedKey: "~", code: "Backquote", keyCode: 192 },
+  "-": { key: "-", shiftedKey: "_", code: "Minus", keyCode: 189 },
+  "=": { key: "=", shiftedKey: "+", code: "Equal", keyCode: 187 },
+  "[": { key: "[", shiftedKey: "{", code: "BracketLeft", keyCode: 219 },
+  "]": { key: "]", shiftedKey: "}", code: "BracketRight", keyCode: 221 },
+  "\\": { key: "\\", shiftedKey: "|", code: "Backslash", keyCode: 220 },
+  ";": { key: ";", shiftedKey: ":", code: "Semicolon", keyCode: 186 },
+  "'": { key: "'", shiftedKey: '"', code: "Quote", keyCode: 222 },
+  ",": { key: ",", shiftedKey: "<", code: "Comma", keyCode: 188 },
+  ".": { key: ".", shiftedKey: ">", code: "Period", keyCode: 190 },
+  "/": { key: "/", shiftedKey: "?", code: "Slash", keyCode: 191 },
+};
+
+const PUNCTUATION_ALIASES: Record<string, string> = {
+  backquote: "`",
+  minus: "-",
+  dash: "-",
+  equal: "=",
+  equals: "=",
+  plus: "=",
+  bracketleft: "[",
+  leftbracket: "[",
+  bracketright: "]",
+  rightbracket: "]",
+  backslash: "\\",
+  semicolon: ";",
+  quote: "'",
+  comma: ",",
+  period: ".",
+  dot: ".",
+  slash: "/",
+  forwardslash: "/",
 };
 
 // --- Helpers ---
@@ -198,7 +251,7 @@ function parseKeyCombo(keyStr: string): {
  * Dispatch a CDP key event (keyDown + keyUp) for a parsed key combo.
  */
 async function dispatchKey(tabId: number, keyStr: string): Promise<void> {
-  const { modifiers, baseKey } = parseKeyCombo(keyStr);
+  const { modifiers, baseKey, shift, ctrl, alt, meta } = parseKeyCombo(keyStr);
 
   // Look up the key definition
   const keyDef = KEY_DEFINITIONS[baseKey.toLowerCase()];
@@ -212,7 +265,7 @@ async function dispatchKey(tabId: number, keyStr: string): Promise<void> {
       windowsVirtualKeyCode: keyDef.keyCode,
       nativeVirtualKeyCode: keyDef.keyCode,
       modifiers,
-      ...(keyDef.text ? { text: keyDef.text } : {}),
+      ...(keyDef.text && !hasCommandModifier(ctrl, alt, meta) ? { text: keyDef.text } : {}),
     });
 
     await cdpManager.sendCommand(tabId, "Input.dispatchKeyEvent", {
@@ -223,10 +276,10 @@ async function dispatchKey(tabId: number, keyStr: string): Promise<void> {
       nativeVirtualKeyCode: keyDef.keyCode,
       modifiers,
     });
-  } else if (baseKey.length === 1) {
+  } else if (/^[a-z]$/i.test(baseKey)) {
     // Single character key
-    const char = baseKey;
-    const upper = char.toUpperCase();
+    const char = shift ? baseKey.toUpperCase() : baseKey.toLowerCase();
+    const upper = baseKey.toUpperCase();
     const keyCode = upper.charCodeAt(0);
 
     await cdpManager.sendCommand(tabId, "Input.dispatchKeyEvent", {
@@ -235,7 +288,7 @@ async function dispatchKey(tabId: number, keyStr: string): Promise<void> {
       code: `Key${upper}`,
       windowsVirtualKeyCode: keyCode,
       nativeVirtualKeyCode: keyCode,
-      text: char,
+      ...(!hasCommandModifier(ctrl, alt, meta) ? { text: char } : {}),
       modifiers,
     });
 
@@ -247,9 +300,62 @@ async function dispatchKey(tabId: number, keyStr: string): Promise<void> {
       nativeVirtualKeyCode: keyCode,
       modifiers,
     });
+  } else if (/^[0-9]$/.test(baseKey)) {
+    const keyValue = shift ? DIGIT_SHIFT_KEYS[baseKey] : baseKey;
+    const keyCode = baseKey.charCodeAt(0);
+
+    await cdpManager.sendCommand(tabId, "Input.dispatchKeyEvent", {
+      type: "keyDown",
+      key: keyValue,
+      code: `Digit${baseKey}`,
+      windowsVirtualKeyCode: keyCode,
+      nativeVirtualKeyCode: keyCode,
+      ...(!hasCommandModifier(ctrl, alt, meta) ? { text: keyValue } : {}),
+      modifiers,
+    });
+
+    await cdpManager.sendCommand(tabId, "Input.dispatchKeyEvent", {
+      type: "keyUp",
+      key: keyValue,
+      code: `Digit${baseKey}`,
+      windowsVirtualKeyCode: keyCode,
+      nativeVirtualKeyCode: keyCode,
+      modifiers,
+    });
+  } else if (getPunctuationDefinition(baseKey)) {
+    const punctuation = getPunctuationDefinition(baseKey)!;
+    const keyValue = shift ? punctuation.shiftedKey : punctuation.key;
+
+    await cdpManager.sendCommand(tabId, "Input.dispatchKeyEvent", {
+      type: "keyDown",
+      key: keyValue,
+      code: punctuation.code,
+      windowsVirtualKeyCode: punctuation.keyCode,
+      nativeVirtualKeyCode: punctuation.keyCode,
+      ...(!hasCommandModifier(ctrl, alt, meta) ? { text: keyValue } : {}),
+      modifiers,
+    });
+
+    await cdpManager.sendCommand(tabId, "Input.dispatchKeyEvent", {
+      type: "keyUp",
+      key: keyValue,
+      code: punctuation.code,
+      windowsVirtualKeyCode: punctuation.keyCode,
+      nativeVirtualKeyCode: punctuation.keyCode,
+      modifiers,
+    });
   } else {
     throw new Error(`Unknown key: "${baseKey}"`);
   }
+}
+
+function hasCommandModifier(ctrl: boolean, alt: boolean, meta: boolean): boolean {
+  return ctrl || alt || meta;
+}
+
+function getPunctuationDefinition(baseKey: string) {
+  const normalized = PUNCTUATION_ALIASES[baseKey.toLowerCase()] ?? baseKey;
+  return PUNCTUATION_DEFINITIONS[normalized];
 }
 
 /**

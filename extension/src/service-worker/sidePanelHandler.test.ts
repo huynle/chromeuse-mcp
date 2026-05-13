@@ -15,32 +15,39 @@ const nativeMessaging = {
 const webSocketConnection = {
   connect: vi.fn(),
   disconnect: vi.fn(),
+  recoverFromActivity: vi.fn(() => Promise.resolve(false)),
   status: "disconnected",
 };
 
 vi.mock("./nativeMessaging.js", () => ({ nativeMessaging }));
 vi.mock("./webSocketConnection.js", () => ({ webSocketConnection }));
 
-Object.assign(globalThis, {
-  chrome: {
-    runtime: {
-      sendMessage: vi.fn(() => Promise.resolve()),
-      onMessage: {
-        addListener: vi.fn((listener: RuntimeMessageListener) => {
-          listeners.push(listener);
-        }),
-      },
-    },
-    action: {
-      onClicked: { addListener: vi.fn() },
-    },
-    sidePanel: {
-      open: vi.fn(() => Promise.resolve()),
+const chromeStub = {
+  runtime: {
+    sendMessage: vi.fn(() => Promise.resolve()),
+    onMessage: {
+      addListener: vi.fn((listener: RuntimeMessageListener) => {
+        listeners.push(listener);
+      }),
     },
   },
-});
+  action: {
+    onClicked: { addListener: vi.fn() },
+    setBadgeText: vi.fn(),
+    setBadgeBackgroundColor: vi.fn(),
+  },
+  sidePanel: {
+    open: vi.fn(() => Promise.resolve()),
+  },
+  alarms: {
+    create: vi.fn(),
+    clear: vi.fn(),
+  },
+};
 
-const { initSidePanelHandler } = await import("./sidePanelHandler.js");
+Object.assign(globalThis, { chrome: chromeStub });
+
+const { initSidePanelHandler, setConnectionStatus } = await import("./sidePanelHandler.js");
 
 function sendRuntimeMessage(message: { action?: string }) {
   const sendResponse = vi.fn();
@@ -54,6 +61,7 @@ describe("sidePanelHandler", () => {
     listeners.length = 0;
     nativeMessaging.status = "disconnected";
     webSocketConnection.status = "disconnected";
+    webSocketConnection.recoverFromActivity.mockResolvedValue(false);
   });
 
   it("handles side panel WebSocket connect and disconnect requests", () => {
@@ -80,5 +88,28 @@ describe("sidePanelHandler", () => {
     expect(webSocketConnection.disconnect).toHaveBeenCalledOnce();
     expect(nativeMessaging.disconnect).not.toHaveBeenCalled();
     expect(nativeMessaging.connect).not.toHaveBeenCalled();
+  });
+
+  it("updates the action badge from the combined connection status", () => {
+    setConnectionStatus("connected");
+
+    expect(chromeStub.action.setBadgeText).toHaveBeenCalledWith({ text: "ON" });
+    expect(chromeStub.action.setBadgeBackgroundColor).toHaveBeenCalledWith({
+      color: "#10B981",
+    });
+    expect(chromeStub.runtime.sendMessage).toHaveBeenCalledWith({
+      type: "connection_status_changed",
+      status: "connected",
+    });
+  });
+
+  it("probes WebSocket gateway health when side panel activity resumes", () => {
+    webSocketConnection.status = "waiting";
+    initSidePanelHandler();
+
+    const state = sendRuntimeMessage({ action: "sidepanel_get_state" });
+
+    expect(state.sendResponse).toHaveBeenCalledOnce();
+    expect(webSocketConnection.recoverFromActivity).toHaveBeenCalledOnce();
   });
 });
