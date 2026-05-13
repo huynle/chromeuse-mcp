@@ -36,10 +36,7 @@ For OpenCode gateway mode, the config should point to `gateway/dist/index.js`:
   "mcpServers": {
     "chromeuse": {
       "command": "node",
-      "args": ["/absolute/path/to/chromeuse-mcp/gateway/dist/index.js"],
-      "env": {
-        "CHROMEUSE_GATEWAY_MODE": "SERVER"
-      }
+      "args": ["/absolute/path/to/chromeuse-mcp/gateway/dist/index.js"]
     }
   }
 }
@@ -244,10 +241,7 @@ Use an absolute path to the built server file. For OpenCode gateway mode, point 
   "mcpServers": {
     "chromeuse": {
       "command": "node",
-      "args": ["/absolute/path/to/chromeuse-mcp/gateway/dist/index.js"],
-      "env": {
-        "CHROMEUSE_GATEWAY_MODE": "SERVER"
-      }
+      "args": ["/absolute/path/to/chromeuse-mcp/gateway/dist/index.js"]
     }
   }
 }

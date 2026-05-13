@@ -54,7 +54,8 @@ export interface GatewayRuntime {
 }
 
 export function resolveGatewayConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig {
-  const mode = env.CHROMEUSE_GATEWAY_MODE?.toLowerCase() === "server" ? "server" : "stdio";
+  const requestedMode = env.CHROMEUSE_GATEWAY_MODE?.toLowerCase();
+  const mode = requestedMode === "stdio" || requestedMode === "direct" ? "stdio" : "server";
 
   return {
     mode,

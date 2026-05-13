@@ -88,9 +88,11 @@ async function startIncompatibleHealthServer(port: number): Promise<NodeHttpServ
 }
 
 describe("gateway runtime", () => {
-  it("defaults to stdio mode unless server mode is explicit", () => {
-    expect(resolveGatewayConfig({}).mode).toBe("stdio");
+  it("defaults to automatic gateway election unless stdio mode is explicit", () => {
+    expect(resolveGatewayConfig({}).mode).toBe("server");
     expect(resolveGatewayConfig({ CHROMEUSE_GATEWAY_MODE: "stdio" }).mode).toBe("stdio");
+    expect(resolveGatewayConfig({ CHROMEUSE_GATEWAY_MODE: "direct" }).mode).toBe("stdio");
+    expect(resolveGatewayConfig({ CHROMEUSE_GATEWAY_MODE: "auto" }).mode).toBe("server");
     expect(resolveGatewayConfig({ CHROMEUSE_GATEWAY_MODE: "server" }).mode).toBe("server");
     expect(resolveGatewayConfig({ CHROMEUSE_GATEWAY_MODE: "SERVER" }).mode).toBe("server");
   });
@@ -128,7 +130,46 @@ describe("gateway runtime", () => {
     expect(config.clientId).toMatch(/^chromeuse-gateway-\d+-[a-z0-9]+$/);
   });
 
-  it("starts default stdio without creating an HTTP server or injected queue", async () => {
+  it("starts default invocation through automatic gateway election", async () => {
+    const bridge = new FakeBrowserTransport();
+    const queue = new FakeBrowserTransport();
+    const httpServer = new FakeHttpServer();
+    const mcpServer = { connect: vi.fn(async () => {}), close: vi.fn(async () => {}) };
+    const stdioTransport = { kind: "stdio" };
+    const createWebSocketBridge = vi.fn(() => bridge);
+    const createQueueTransport = vi.fn(() => queue);
+    const createMcpServerImpl = vi.fn(async () => mcpServer);
+    const createGatewayServerImpl = vi.fn(() => httpServer as never);
+
+    const runtime = await startGateway({
+      env: {},
+      stderr: { write: vi.fn() },
+      createMcpServerImpl,
+      createStdioTransport: () => stdioTransport,
+      createWebSocketBridge,
+      createGatewayServerImpl,
+      createQueueTransport,
+    });
+
+    expect(runtime.mode).toBe("server");
+    expect(createWebSocketBridge).toHaveBeenCalledWith({
+      env: { CHROMEUSE_WS_PORT: undefined },
+    });
+    expect(createQueueTransport).toHaveBeenCalledWith(bridge);
+    expect(queue.connect).toHaveBeenCalledTimes(1);
+    expect(createGatewayServerImpl).toHaveBeenCalled();
+    expect(createMcpServerImpl).toHaveBeenCalledWith(queue);
+    expect(mcpServer.connect).toHaveBeenCalledWith(stdioTransport);
+    expect(runtime.config.clientId).toMatch(/^chromeuse-gateway-\d+-[a-z0-9]+$/);
+    expect(httpServer.listen).toHaveBeenCalledWith(8766, "127.0.0.1");
+
+    await runtime.close();
+    expect(httpServer.close).toHaveBeenCalledTimes(1);
+    expect(queue.disconnect).toHaveBeenCalledTimes(1);
+    expect(mcpServer.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves explicit stdio mode for debugging", async () => {
     const mcpServer = { connect: vi.fn(async () => {}), close: vi.fn(async () => {}) };
     const stdioTransport = { kind: "stdio" };
     const createMcpServerImpl = vi.fn(async () => mcpServer);
@@ -136,7 +177,7 @@ describe("gateway runtime", () => {
     const createQueueTransport = vi.fn();
 
     const runtime = await startGateway({
-      env: {},
+      env: { CHROMEUSE_GATEWAY_MODE: "direct" },
       stderr: { write: vi.fn() },
       createMcpServerImpl,
       createStdioTransport: () => stdioTransport,
@@ -147,7 +188,6 @@ describe("gateway runtime", () => {
     expect(runtime.mode).toBe("stdio");
     expect(createMcpServerImpl).toHaveBeenCalledWith();
     expect(mcpServer.connect).toHaveBeenCalledWith(stdioTransport);
-    expect(runtime.config.clientId).toMatch(/^chromeuse-gateway-\d+-[a-z0-9]+$/);
     expect(createGatewayServerImpl).not.toHaveBeenCalled();
     expect(createQueueTransport).not.toHaveBeenCalled();
 

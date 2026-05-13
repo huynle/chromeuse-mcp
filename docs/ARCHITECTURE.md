@@ -29,7 +29,7 @@ Key files:
 - `gateway/src/httpGatewayTransport.ts`: PROXY transport for forwarding tool calls to an existing SERVER.
 - `gateway/src/requestQueue.ts`: serializes browser tool requests through the shared WebSocket bridge.
 
-Gateway mode is selected with `CHROMEUSE_GATEWAY_MODE=SERVER`. The first process that can bind the local HTTP port becomes SERVER. If another gateway process starts with the same HTTP port and finds a compatible `/health` response, it becomes PROXY and forwards tool calls to the SERVER over HTTP.
+Gateway automatic SERVER/PROXY election is the default for `gateway/dist/index.js`. The first process that can bind the local HTTP port becomes SERVER. If another gateway process starts with the same HTTP port and finds a compatible `/health` response, it becomes PROXY and forwards tool calls to the SERVER over HTTP. Explicit `CHROMEUSE_GATEWAY_MODE=stdio` or `direct` is retained only as a debugging escape hatch.
 
 Gateway browser traffic is WebSocket-only in the MVP. The SERVER owns the WebSocket bridge to the extension, and PROXY processes never open native messaging sessions. Direct `mcp-server/dist/index.js` keeps native messaging fallback for users who need Chrome native messaging behavior.
 
@@ -127,7 +127,7 @@ MCP client -> mcp-server -> WebSocket or native-host -> Chrome extension
 ### Gateway SERVER/PROXY Path
 
 1. OpenCode starts `node gateway/dist/index.js` as a stdio process.
-2. `CHROMEUSE_GATEWAY_MODE=SERVER` enables local HTTP gateway coordination.
+2. Local HTTP gateway coordination starts automatically by default.
 3. The first process binds `127.0.0.1:<CHROMEUSE_HTTP_PORT>` and becomes SERVER.
 4. The SERVER starts one WebSocket bridge on `127.0.0.1:<CHROMEUSE_WS_PORT>`.
 5. The user opens the ChromeUse side panel and clicks **Connect**.
@@ -137,7 +137,7 @@ MCP client -> mcp-server -> WebSocket or native-host -> Chrome extension
 
 Configuration variables:
 
-- `CHROMEUSE_GATEWAY_MODE=SERVER`: enables SERVER/PROXY behavior.
+- `CHROMEUSE_GATEWAY_MODE`: optional. Unset, `auto`, or `server` enables SERVER/PROXY behavior. `stdio` or `direct` bypasses gateway election for debugging.
 - `CHROMEUSE_HTTP_PORT`: local HTTP gateway port shared by all OpenCode instances. Default: `8766`.
 - `CHROMEUSE_WS_PORT`: extension WebSocket bridge port. Default: `8765`.
 - `CHROMEUSE_CLIENT_ID`: optional client identifier for logs or diagnostics.

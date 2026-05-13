@@ -51,7 +51,7 @@ Direct legacy path:
 MCP client -> mcp-server -> native-host -> Chrome extension
 ```
 
-The gateway entry point, `gateway/dist/index.js`, lets multiple OpenCode instances share one ChromeUse extension connection. In gateway SERVER mode, the first process binds the local HTTP gateway and owns the WebSocket bridge. Later OpenCode instances detect that compatible gateway and become PROXY processes that forward tool calls to the SERVER instead of opening another extension bridge.
+The gateway entry point, `gateway/dist/index.js`, lets multiple OpenCode instances share one ChromeUse extension connection by default. The first process binds the local HTTP gateway and owns the WebSocket bridge. Later OpenCode instances detect that compatible gateway and become PROXY processes that forward tool calls to the SERVER instead of opening another extension bridge.
 
 The gateway MVP is WebSocket-only for browser traffic. Open the ChromeUse side panel and click **Connect** to attach the extension to `ws://127.0.0.1:8765` by default. This Connect flow is not a native messaging bypass and it still requires a gateway SERVER process to be running.
 
@@ -138,10 +138,7 @@ For OpenCode and other clients that may start multiple ChromeUse MCP instances, 
   "mcpServers": {
     "chromeuse": {
       "command": "node",
-      "args": ["/absolute/path/to/chromeuse-mcp/gateway/dist/index.js"],
-      "env": {
-        "CHROMEUSE_GATEWAY_MODE": "SERVER"
-      }
+      "args": ["/absolute/path/to/chromeuse-mcp/gateway/dist/index.js"]
     }
   }
 }
@@ -151,7 +148,7 @@ Restart your MCP client after changing its config.
 
 Gateway environment variables:
 
-- `CHROMEUSE_GATEWAY_MODE=SERVER`: enables the HTTP gateway election path. The first process becomes SERVER; later compatible processes become PROXY automatically.
+- `CHROMEUSE_GATEWAY_MODE`: optional. Unset, `auto`, or `server` uses automatic HTTP gateway election. The first process becomes SERVER; later compatible processes become PROXY automatically. Use `stdio` or `direct` only when debugging the gateway without HTTP election.
 - `CHROMEUSE_HTTP_PORT`: local HTTP gateway port used by SERVER and PROXY processes. Use the same value for all OpenCode instances that should share one extension connection. Default: `8766`.
 - `CHROMEUSE_WS_PORT`: WebSocket bridge port that the ChromeUse side panel connects to. Default: `8765`.
 - `CHROMEUSE_CLIENT_ID`: optional label for identifying a client instance in logs or diagnostics.

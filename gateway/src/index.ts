@@ -2,13 +2,14 @@
 /**
  * OpenCode MCP gateway entry point.
  *
- * Starts the ChromeUse MCP gateway in stdio mode by default. When
- * CHROMEUSE_GATEWAY_MODE=server is set, also starts the local HTTP gateway and
- * shares one queued WebSocket extension bridge between stdio and HTTP requests.
+ * Starts automatic SERVER/PROXY gateway election by default. The first process
+ * binds the local HTTP gateway and owns the queued WebSocket extension bridge;
+ * later processes proxy stdio MCP tool requests through that SERVER.
  *
  * Usage:
  *   node gateway/dist/index.js
- *   CHROMEUSE_GATEWAY_MODE=server CHROMEUSE_HTTP_PORT=8766 node gateway/dist/index.js
+ *   CHROMEUSE_HTTP_PORT=8766 node gateway/dist/index.js
+ *   CHROMEUSE_GATEWAY_MODE=stdio node gateway/dist/index.js
  */
 
 import { startGateway } from "./gatewayRuntime.js";
