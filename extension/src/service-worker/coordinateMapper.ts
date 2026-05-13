@@ -10,14 +10,18 @@
  *
  * Token budget sizing:
  * - pxPerToken = 28 (Claude's approximate pixels-per-token for images)
- * - maxTargetPx = 1568 (max dimension to stay within reasonable token budget)
+ * - absoluteMaxPx = 2000 (Claude API hard limit for many-image requests)
+ * - maxTargetPx = 1400 (conservative target to stay within reasonable token budget)
  */
 
 /** Pixels per token for Claude's vision model */
 const PX_PER_TOKEN = 28;
 
+/** Absolute maximum dimension enforced by Claude API for many-image requests */
+const ABSOLUTE_MAX_PX = 2000;
+
 /** Maximum target dimension in pixels for screenshot capture */
-const MAX_TARGET_PX = 1568;
+const MAX_TARGET_PX = 1400;
 
 /** Minimum dimension to avoid degenerate screenshots */
 const MIN_TARGET_PX = 100;
@@ -46,26 +50,35 @@ export interface ScaleFactors {
  * Calculate the optimal screenshot dimensions for a given viewport,
  * keeping the image within token budget while preserving aspect ratio.
  *
- * The longest edge is capped at maxTargetPx, and the other edge is
- * scaled proportionally.
+ * The longest edge is capped at the minimum of maxPx and ABSOLUTE_MAX_PX (2000),
+ * ensuring Claude API limits are never exceeded. The other edge is scaled
+ * proportionally to maintain aspect ratio.
+ *
+ * @param viewport - The browser viewport dimensions
+ * @param devicePixelRatio - Device pixel ratio (typically 1, 1.5, or 2)
+ * @param maxPx - Maximum target dimension (defaults to MAX_TARGET_PX = 1400)
+ * @returns Screenshot dimensions that respect all constraints
  */
 export function calculateScreenshotDimensions(
   viewport: ViewportSize,
   devicePixelRatio = 1,
   maxPx = MAX_TARGET_PX
 ): ScreenshotDimensions {
+  // Ensure maxPx never exceeds Claude API's absolute maximum
+  const effectiveMaxPx = Math.min(maxPx, ABSOLUTE_MAX_PX);
+
   // Actual pixel dimensions (accounting for device pixel ratio)
   const actualWidth = viewport.width * devicePixelRatio;
   const actualHeight = viewport.height * devicePixelRatio;
 
   // If already within budget, use actual dimensions
-  if (actualWidth <= maxPx && actualHeight <= maxPx) {
+  if (actualWidth <= effectiveMaxPx && actualHeight <= effectiveMaxPx) {
     return { width: actualWidth, height: actualHeight };
   }
 
-  // Scale down so the longest edge fits within maxPx
+  // Scale down so the longest edge fits within effectiveMaxPx
   const longestEdge = Math.max(actualWidth, actualHeight);
-  const scale = maxPx / longestEdge;
+  const scale = effectiveMaxPx / longestEdge;
 
   return {
     width: Math.max(MIN_TARGET_PX, Math.round(actualWidth * scale)),
