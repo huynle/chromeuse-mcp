@@ -218,6 +218,74 @@ function getChromeUseIconUrl(size: 16 | 48 = 16): string | null {
   return chrome.runtime.getURL(`assets/icon-${size}.png`);
 }
 
+export function getFileTreeIconPath(entry: MarkdownFileTreeEntry): string {
+  if (entry.type === "directory") return "assets/devicons/folder.svg";
+
+  const name = entry.name.toLowerCase();
+  const extension = name.includes(".") ? name.split(".").at(-1) : "";
+
+  if (name === "package.json" || name === "package-lock.json" || name === "npm-shrinkwrap.json") {
+    return "assets/devicons/npm.svg";
+  }
+  if (name === ".gitignore" || name === ".gitattributes" || name === ".gitmodules") return "assets/devicons/git.svg";
+
+  switch (extension) {
+    case "md":
+    case "mdx":
+    case "markdown":
+      return "assets/devicons/markdown.svg";
+    case "tsx":
+    case "jsx":
+      return "assets/devicons/react.svg";
+    case "ts":
+      return "assets/devicons/typescript.svg";
+    case "js":
+    case "mjs":
+    case "cjs":
+      return "assets/devicons/javascript.svg";
+    case "json":
+      return "assets/devicons/json.svg";
+    case "html":
+    case "htm":
+      return "assets/devicons/html5.svg";
+    case "css":
+      return "assets/devicons/css3.svg";
+    case "py":
+      return "assets/devicons/python.svg";
+    case "vue":
+      return "assets/devicons/vuejs.svg";
+    case "svelte":
+      return "assets/devicons/svelte.svg";
+    case "go":
+      return "assets/devicons/go.svg";
+    case "rs":
+      return "assets/devicons/rust.svg";
+    default:
+      return "assets/devicons/file.svg";
+  }
+}
+
+function getFileTreeIconUrl(entry: MarkdownFileTreeEntry): string | null {
+  if (typeof chrome === "undefined" || !chrome.runtime?.getURL) return null;
+  return chrome.runtime.getURL(getFileTreeIconPath(entry));
+}
+
+function createFileTreeIcon(doc: Document, entry: MarkdownFileTreeEntry): HTMLElement {
+  const iconUrl = getFileTreeIconUrl(entry);
+  if (!iconUrl) {
+    const fallback = doc.createElement("span");
+    fallback.className = entry.type === "directory" ? "chromeuse-markdown-icon-folder" : "chromeuse-markdown-icon-file";
+    fallback.textContent = entry.type === "directory" ? "▢" : "•";
+    return fallback;
+  }
+
+  const icon = doc.createElement("img");
+  icon.className = "chromeuse-markdown-icon-image";
+  icon.src = iconUrl;
+  icon.alt = "";
+  return icon;
+}
+
 function setPageIcon(doc: Document): void {
   const iconUrl = getChromeUseIconUrl(16);
   if (!iconUrl) return;
@@ -979,12 +1047,21 @@ function renderFileTreeEntry(
   if (entry.type === "directory") {
     const button = doc.createElement("button");
     button.type = "button";
-    button.innerHTML = `<span class="chromeuse-markdown-caret">▸</span><span class="chromeuse-markdown-icon-folder">▢</span><span class="chromeuse-markdown-file-name"></span>`;
-    button.children[1]!.textContent = entry.name === ".." ? "↑" : "▢";
-    button.lastElementChild!.textContent = entry.name;
+    const caret = doc.createElement("span");
+    caret.className = "chromeuse-markdown-caret";
+    caret.textContent = "▸";
+    const icon = entry.name === ".." ? doc.createElement("span") : createFileTreeIcon(doc, entry);
+    if (entry.name === "..") {
+      icon.className = "chromeuse-markdown-icon-folder";
+      icon.textContent = "↑";
+    }
+    const name = doc.createElement("span");
+    name.className = "chromeuse-markdown-file-name";
+    name.textContent = entry.name;
+    button.append(caret, icon, name);
 
     if (entry.name === "..") {
-      button.firstElementChild!.textContent = "";
+      caret.textContent = "";
       button.addEventListener("click", () => {
         void loadFileTreeDirectory(doc, entry.url, navigationList, currentUrl, true, navigationList);
       });
@@ -1014,15 +1091,7 @@ function renderFileTreeEntry(
   const spacer = doc.createElement("span");
   spacer.style.width = "12px";
   spacer.style.flex = "0 0 12px";
-  const iconUrl = getChromeUseIconUrl(16);
-  const icon = iconUrl ? doc.createElement("img") : doc.createElement("span");
-  icon.className = iconUrl ? "chromeuse-markdown-icon-image" : "chromeuse-markdown-icon-file";
-  if (icon instanceof HTMLImageElement) {
-    icon.src = iconUrl!;
-    icon.alt = "";
-  } else {
-    icon.textContent = "M";
-  }
+  const icon = createFileTreeIcon(doc, entry);
   const name = doc.createElement("span");
   name.className = "chromeuse-markdown-file-name";
   name.textContent = entry.name;

@@ -5,6 +5,7 @@ import {
   createMarkdownDocumentModel,
   extractMarkdownHeadings,
   fetchDirectoryListing,
+  getFileTreeIconPath,
   getParentDirectoryUrl,
   parseDirectoryListing,
   shouldRenderMarkdownDocument,
@@ -58,6 +59,24 @@ describe("markdown document renderer", () => {
   it("finds the parent directory for local markdown documents", () => {
     expect(getParentDirectoryUrl("file:///Users/me/project/docs/README.md")).toBe("file:///Users/me/project/docs/");
     expect(getParentDirectoryUrl("https://example.com/docs/README.md")).toBeNull();
+  });
+
+  it("maps folders and common file types to Devicon assets", () => {
+    expect(getFileTreeIconPath({ name: "docs", url: "file:///Users/me/project/docs/", type: "directory" })).toBe(
+      "assets/devicons/folder.svg",
+    );
+    expect(getFileTreeIconPath({ name: "README.md", url: "file:///Users/me/project/README.md", type: "file" })).toBe(
+      "assets/devicons/markdown.svg",
+    );
+    expect(getFileTreeIconPath({ name: "package.json", url: "file:///Users/me/project/package.json", type: "file" })).toBe(
+      "assets/devicons/npm.svg",
+    );
+    expect(getFileTreeIconPath({ name: "app.tsx", url: "file:///Users/me/project/app.tsx", type: "file" })).toBe(
+      "assets/devicons/react.svg",
+    );
+    expect(getFileTreeIconPath({ name: "unknown.lock", url: "file:///Users/me/project/unknown.lock", type: "file" })).toBe(
+      "assets/devicons/file.svg",
+    );
   });
 
   it("parses Chrome file directory listings into markdown files and folders", () => {
