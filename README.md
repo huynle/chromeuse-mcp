@@ -97,7 +97,7 @@ cd chromeuse-mcp
 The installer:
 
 - Installs npm workspace dependencies.
-- Builds `shared`, `native-host`, `extension`, and `mcp-server`.
+- Builds `shared`, `extension`, `native-host`, `mcp-server`, and `gateway`.
 - Installs native messaging host manifests for supported Chromium browsers.
 - Prints the extension loading instructions.
 
@@ -132,6 +132,30 @@ CHROMEUSE_EXTENSION_IDS=<id-1>,<id-2> ./scripts/install.sh
 ### 4. Configure Your MCP Client
 
 For OpenCode and other clients that may start multiple ChromeUse MCP instances, use the gateway entry point. The normal setup is zero-config: use `node` with one absolute `gateway/dist/index.js` argument and no gateway environment variables.
+
+For OpenCode, add a local MCP entry to `~/.config/opencode/opencode.jsonc`:
+
+```jsonc
+{
+  "mcp": {
+    "chromeuse-mcp": {
+      "type": "local",
+      "enabled": true,
+      "command": [
+        "node",
+        "/absolute/path/to/chromeuse-mcp/gateway/dist/index.js"
+      ],
+      "timeout": 15000
+    }
+  }
+}
+```
+
+Use the absolute path to your checkout. For example, if you cloned this repository to `/Users/alice/projects/chromeuse-mcp`, use `/Users/alice/projects/chromeuse-mcp/gateway/dist/index.js`.
+
+When OpenCode starts, the first ChromeUse MCP process becomes the gateway SERVER and listens on `127.0.0.1:8766` plus `ws://127.0.0.1:8765`. Additional OpenCode TUI instances become PROXY processes and share the same browser extension connection. Keep at least one OpenCode instance that owns the gateway running if you want the side panel to stay connected.
+
+Other MCP clients commonly use this shape:
 
 ```json
 {
