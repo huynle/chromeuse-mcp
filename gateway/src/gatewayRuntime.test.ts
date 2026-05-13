@@ -88,8 +88,12 @@ async function startIncompatibleHealthServer(port: number): Promise<NodeHttpServ
 }
 
 describe("gateway runtime", () => {
-  it("defaults to automatic gateway election unless stdio mode is explicit", () => {
-    expect(resolveGatewayConfig({}).mode).toBe("server");
+  it("defaults zero-config gateway invocation to automatic HTTP election on port 8766", () => {
+    const zeroConfig = resolveGatewayConfig({});
+
+    expect(zeroConfig.mode).toBe("server");
+    expect(zeroConfig.gatewayHost).toBe("127.0.0.1");
+    expect(zeroConfig.gatewayPort).toBe(8766);
     expect(resolveGatewayConfig({ CHROMEUSE_GATEWAY_MODE: "stdio" }).mode).toBe("stdio");
     expect(resolveGatewayConfig({ CHROMEUSE_GATEWAY_MODE: "direct" }).mode).toBe("stdio");
     expect(resolveGatewayConfig({ CHROMEUSE_GATEWAY_MODE: "auto" }).mode).toBe("server");

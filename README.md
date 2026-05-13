@@ -38,20 +38,20 @@ OpenCode / MCP client
     v
 gateway
     |\
-    | \  SERVER: owns HTTP gateway + WebSocket bridge
-    |  \
+    | \  SERVER: owns HTTP gateway at 127.0.0.1:8766
+    |  \         + WebSocket bridge at ws://127.0.0.1:8765
     |   +---- PROXY: forwards to existing SERVER over HTTP
     |
     |  WebSocket-only browser path ws://127.0.0.1:8765
     v
 Chrome extension
 
-Direct legacy path:
+Direct fallback-capable path:
 
-MCP client -> mcp-server -> native-host -> Chrome extension
+MCP client -> mcp-server -> WebSocket or native-host -> Chrome extension
 ```
 
-The gateway entry point, `gateway/dist/index.js`, lets multiple OpenCode instances share one ChromeUse extension connection by default. The first process binds the local HTTP gateway and owns the WebSocket bridge. Later OpenCode instances detect that compatible gateway and become PROXY processes that forward tool calls to the SERVER instead of opening another extension bridge.
+The gateway entry point, `gateway/dist/index.js`, lets multiple OpenCode instances share one ChromeUse extension connection by default with no environment variables. The first process binds the local HTTP gateway on `127.0.0.1:8766` and owns the WebSocket bridge on `127.0.0.1:8765`. Later OpenCode instances detect that compatible gateway and become PROXY processes that forward tool calls to the SERVER instead of opening another extension bridge.
 
 The gateway MVP is WebSocket-only for browser traffic. Open the ChromeUse side panel and click **Connect** to attach the extension to `ws://127.0.0.1:8765` by default. This Connect flow is not a native messaging bypass and it still requires a gateway SERVER process to be running.
 
@@ -131,7 +131,7 @@ CHROMEUSE_EXTENSION_IDS=<id-1>,<id-2> ./scripts/install.sh
 
 ### 4. Configure Your MCP Client
 
-For OpenCode and other clients that may start multiple ChromeUse MCP instances, use the gateway entry point. Use an absolute path to `gateway/dist/index.js`.
+For OpenCode and other clients that may start multiple ChromeUse MCP instances, use the gateway entry point. The normal setup is zero-config: use `node` with one absolute `gateway/dist/index.js` argument and no gateway environment variables.
 
 ```json
 {
@@ -146,14 +146,14 @@ For OpenCode and other clients that may start multiple ChromeUse MCP instances, 
 
 Restart your MCP client after changing its config.
 
-Gateway environment variables:
+Optional gateway environment variables:
 
-- `CHROMEUSE_GATEWAY_MODE`: optional. Unset, `auto`, or `server` uses automatic HTTP gateway election. The first process becomes SERVER; later compatible processes become PROXY automatically. Use `stdio` or `direct` only when debugging the gateway without HTTP election.
-- `CHROMEUSE_HTTP_PORT`: local HTTP gateway port used by SERVER and PROXY processes. Use the same value for all OpenCode instances that should share one extension connection. Default: `8766`.
+- `CHROMEUSE_GATEWAY_MODE`: optional. Leave unset for normal automatic gateway behavior. Unset, `auto`, or `server` uses automatic HTTP gateway election. The first process becomes SERVER; later compatible processes become PROXY automatically. Use `stdio` or `direct` only when debugging the gateway without HTTP election.
+- `CHROMEUSE_HTTP_PORT`: local HTTP gateway port used by SERVER and PROXY processes. Use the same value for all OpenCode instances that should share one extension connection. Default: `8766`. The project uses `8766` instead of common app development ports such as `3000` so the HTTP gateway sits next to the WebSocket bridge default, `8765`, without colliding with typical web apps.
 - `CHROMEUSE_WS_PORT`: WebSocket bridge port that the ChromeUse side panel connects to. Default: `8765`.
 - `CHROMEUSE_CLIENT_ID`: optional label for identifying a client instance in logs or diagnostics.
 
-If you need the older native messaging fallback behavior, configure the direct MCP server instead:
+If you need the older native messaging fallback behavior, configure the direct MCP server instead. This is a different mode from the automatic gateway: `mcp-server/dist/index.js` does not participate in HTTP SERVER/PROXY election and is intended for direct WebSocket or native messaging fallback use.
 
 ```json
 {

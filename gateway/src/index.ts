@@ -3,12 +3,13 @@
  * OpenCode MCP gateway entry point.
  *
  * Starts automatic SERVER/PROXY gateway election by default. The first process
- * binds the local HTTP gateway and owns the queued WebSocket extension bridge;
- * later processes proxy stdio MCP tool requests through that SERVER.
+ * binds the local HTTP gateway on 127.0.0.1:8766 and owns the queued WebSocket
+ * extension bridge on 127.0.0.1:8765; later processes proxy stdio MCP tool
+ * requests through that SERVER.
  *
  * Usage:
  *   node gateway/dist/index.js
- *   CHROMEUSE_HTTP_PORT=8766 node gateway/dist/index.js
+ *   CHROMEUSE_HTTP_PORT=9123 node gateway/dist/index.js
  *   CHROMEUSE_GATEWAY_MODE=stdio node gateway/dist/index.js
  */
 

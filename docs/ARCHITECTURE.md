@@ -19,7 +19,7 @@ Key files:
 
 ### `gateway`
 
-The gateway is the recommended OpenCode entry point when multiple OpenCode instances may share one ChromeUse extension connection. It exposes the same MCP tools over stdio to each client process, but coordinates browser access through one local HTTP gateway and one WebSocket bridge.
+The gateway is the recommended OpenCode entry point when multiple OpenCode instances may share one ChromeUse extension connection. It exposes the same MCP tools over stdio to each client process, but coordinates browser access through one local HTTP gateway and one WebSocket bridge. Normal OpenCode configuration starts `node /absolute/path/to/gateway/dist/index.js` with no environment variables; automatic SERVER/PROXY election is the default behavior.
 
 Key files:
 
@@ -29,7 +29,7 @@ Key files:
 - `gateway/src/httpGatewayTransport.ts`: PROXY transport for forwarding tool calls to an existing SERVER.
 - `gateway/src/requestQueue.ts`: serializes browser tool requests through the shared WebSocket bridge.
 
-Gateway automatic SERVER/PROXY election is the default for `gateway/dist/index.js`. The first process that can bind the local HTTP port becomes SERVER. If another gateway process starts with the same HTTP port and finds a compatible `/health` response, it becomes PROXY and forwards tool calls to the SERVER over HTTP. Explicit `CHROMEUSE_GATEWAY_MODE=stdio` or `direct` is retained only as a debugging escape hatch.
+Gateway automatic SERVER/PROXY election is the default for `gateway/dist/index.js`. The first process that can bind the local HTTP port, `127.0.0.1:8766` by default, becomes SERVER. If another gateway process starts with the same HTTP port and finds a compatible `/health` response, it becomes PROXY and forwards tool calls to the SERVER over HTTP. Explicit `CHROMEUSE_GATEWAY_MODE=stdio` or `direct` is retained only as a debugging escape hatch, not as normal setup.
 
 Gateway browser traffic is WebSocket-only in the MVP. The SERVER owns the WebSocket bridge to the extension, and PROXY processes never open native messaging sessions. Direct `mcp-server/dist/index.js` keeps native messaging fallback for users who need Chrome native messaging behavior.
 
@@ -113,8 +113,8 @@ OpenCode / MCP client
     v
 gateway
     |\
-    | \  SERVER owns local HTTP + ws://127.0.0.1:8765
-    |  \
+    | \  SERVER owns HTTP 127.0.0.1:8766
+    |  \         + ws://127.0.0.1:8765
     |   +---- PROXY forwards to SERVER over local HTTP
     v
 Chrome extension
@@ -127,9 +127,9 @@ MCP client -> mcp-server -> WebSocket or native-host -> Chrome extension
 ### Gateway SERVER/PROXY Path
 
 1. OpenCode starts `node gateway/dist/index.js` as a stdio process.
-2. Local HTTP gateway coordination starts automatically by default.
-3. The first process binds `127.0.0.1:<CHROMEUSE_HTTP_PORT>` and becomes SERVER.
-4. The SERVER starts one WebSocket bridge on `127.0.0.1:<CHROMEUSE_WS_PORT>`.
+2. Local HTTP gateway coordination starts automatically by default; no `CHROMEUSE_GATEWAY_MODE` setting is required for normal setup.
+3. The first process binds `127.0.0.1:<CHROMEUSE_HTTP_PORT>` and becomes SERVER. The default HTTP gateway port is `8766`.
+4. The SERVER starts one WebSocket bridge on `127.0.0.1:<CHROMEUSE_WS_PORT>`. The default WebSocket bridge port is `8765`.
 5. The user opens the ChromeUse side panel and clicks **Connect**.
 6. Later OpenCode instances start the same gateway entry point, fail to bind the occupied HTTP port, probe `/health`, and become PROXY if the existing SERVER is compatible.
 7. PROXY instances accept MCP stdio calls from their own OpenCode process and forward `/tool` requests to the SERVER over HTTP.
@@ -137,12 +137,12 @@ MCP client -> mcp-server -> WebSocket or native-host -> Chrome extension
 
 Configuration variables:
 
-- `CHROMEUSE_GATEWAY_MODE`: optional. Unset, `auto`, or `server` enables SERVER/PROXY behavior. `stdio` or `direct` bypasses gateway election for debugging.
-- `CHROMEUSE_HTTP_PORT`: local HTTP gateway port shared by all OpenCode instances. Default: `8766`.
+- `CHROMEUSE_GATEWAY_MODE`: optional. Leave unset for normal setup. Unset, `auto`, or `server` enables SERVER/PROXY behavior. `stdio` or `direct` bypasses gateway election for debugging.
+- `CHROMEUSE_HTTP_PORT`: local HTTP gateway port shared by all OpenCode instances. Default: `8766`, chosen as the project default to avoid common application development ports such as `3000` and to sit adjacent to the WebSocket default `8765`.
 - `CHROMEUSE_WS_PORT`: extension WebSocket bridge port. Default: `8765`.
 - `CHROMEUSE_CLIENT_ID`: optional client identifier for logs or diagnostics.
 
-### Direct WebSocket Connect Path
+### Direct WebSocket Connect Path (`mcp-server/dist/index.js`)
 
 1. An MCP client starts `node mcp-server/dist/index.js` as a stdio process.
 2. The MCP server starts a WebSocket bridge on `127.0.0.1:8765`, or on `CHROMEUSE_WS_PORT` when that environment variable is set.
@@ -152,7 +152,7 @@ Configuration variables:
 
 The Connect button only attaches the extension to the MCP server's localhost WebSocket bridge. It does not bypass native messaging policy for the native host path, and it cannot work unless the MCP server process is already running.
 
-### Direct Native Messaging Fallback Path
+### Direct Native Messaging Fallback Path (`mcp-server/dist/index.js`)
 
 1. An MCP client starts `node mcp-server/dist/index.js` as a stdio process.
 2. The MCP client calls a ChromeUse MCP tool.

@@ -4,8 +4,8 @@ This guide covers the most common setup and runtime issues.
 
 ChromeUse supports two local browser transports:
 
-- Gateway WebSocket path: `gateway/dist/index.js` can run as a shared SERVER/PROXY entry point for multiple OpenCode instances. The SERVER owns the WebSocket bridge at `ws://127.0.0.1:8765` by default.
-- Direct native messaging fallback path: `mcp-server/dist/index.js` can use Chrome native messaging after the extension ID is registered in the native messaging manifest.
+- Gateway WebSocket path: `gateway/dist/index.js` runs in automatic SERVER/PROXY mode by default. Normal OpenCode config needs only `node` plus an absolute `gateway/dist/index.js` path. The SERVER owns the HTTP gateway at `127.0.0.1:8766` and the WebSocket bridge at `ws://127.0.0.1:8765` by default.
+- Direct native messaging fallback path: `mcp-server/dist/index.js` does not use gateway HTTP election. It can use Chrome native messaging after the extension ID is registered in the native messaging manifest.
 
 The **Connect** button is only for the localhost WebSocket transport. It is not a native messaging bypass and does not change Chrome native messaging policy.
 
@@ -24,12 +24,12 @@ Symptoms:
 Checks:
 
 1. Restart your MCP client after adding the ChromeUse server config.
-2. Confirm the config uses `node` with an absolute path to `gateway/dist/index.js` for OpenCode gateway mode.
+2. Confirm the config uses `node` with an absolute path to `gateway/dist/index.js` for normal OpenCode gateway mode. Do not set `CHROMEUSE_GATEWAY_MODE` unless you are debugging a non-default mode.
 3. Confirm the repository has been built with `./scripts/build.sh`.
 
 The WebSocket bridge is created by the gateway SERVER or direct MCP server process. Opening the extension side panel alone does not start either process.
 
-For OpenCode gateway mode, the config should point to `gateway/dist/index.js`:
+For OpenCode gateway mode, the config should point to `gateway/dist/index.js` with no required environment variables:
 
 ```json
 {
@@ -42,7 +42,7 @@ For OpenCode gateway mode, the config should point to `gateway/dist/index.js`:
 }
 ```
 
-Set `CHROMEUSE_HTTP_PORT` when multiple gateway groups need separate local HTTP ports. Set `CHROMEUSE_WS_PORT` only when the extension side panel is configured to connect to the same WebSocket port. `CHROMEUSE_CLIENT_ID` is optional and can identify a client instance in logs or diagnostics.
+Set `CHROMEUSE_HTTP_PORT` only when multiple gateway groups need separate local HTTP ports. The default HTTP gateway port is `8766`, chosen instead of common app development ports such as `3000` so it sits next to the WebSocket bridge default, `8765`. Set `CHROMEUSE_WS_PORT` only when the extension side panel is configured to connect to the same WebSocket port. `CHROMEUSE_CLIENT_ID` is optional and can identify a client instance in logs or diagnostics.
 
 ## Side Panel Connect Does Not Connect
 
@@ -58,7 +58,7 @@ Checks:
 3. Keep the side panel connection active while running tool calls.
 4. If you changed the WebSocket port, make sure the extension and MCP server use the same URL. The extension default is `ws://127.0.0.1:8765`.
 
-If native messaging is installed correctly, ChromeUse may still work through native messaging even when the side panel is disconnected. The Connect flow is for the WebSocket path.
+When using direct `mcp-server/dist/index.js`, ChromeUse may still work through native messaging even when the side panel is disconnected if native messaging is installed correctly. Gateway mode does not use native messaging fallback; its Connect flow is for the WebSocket path.
 
 ## WebSocket Port Is Already In Use
 
@@ -69,7 +69,7 @@ Symptoms:
 
 Fix:
 
-The side panel Connect flow expects the MCP server bridge on `127.0.0.1:8765` by default, so the simplest fix is to stop the other local process using port `8765`, then restart your MCP client.
+The side panel Connect flow expects the ChromeUse WebSocket bridge on `127.0.0.1:8765` by default, so the simplest fix is to stop the other local process using port `8765`, then restart your MCP client.
 
 Advanced setups can set a different WebSocket port in the MCP client server environment:
 
@@ -80,7 +80,7 @@ Advanced setups can set a different WebSocket port in the MCP client server envi
       "command": "node",
       "args": ["/absolute/path/to/chromeuse-mcp/mcp-server/dist/index.js"],
       "env": {
-        "CHROMEUSE_WS_PORT": "8766"
+        "CHROMEUSE_WS_PORT": "9876"
       }
     }
   }
@@ -104,7 +104,7 @@ Checks:
 3. If a ChromeUse gateway SERVER is already running on that port, later instances should become PROXY after a compatible `/health` probe.
 4. If the `/health` probe is incompatible, stop the stale process or change the HTTP port.
 
-SERVER owns the HTTP listener and WebSocket bridge. PROXY owns only its stdio MCP connection to its OpenCode process and forwards tool calls to SERVER over local HTTP.
+SERVER owns the HTTP listener on `127.0.0.1:8766` by default and the WebSocket bridge on `127.0.0.1:8765` by default. PROXY owns only its stdio MCP connection to its OpenCode process and forwards tool calls to SERVER over local HTTP.
 
 ## No Extension Connected
 

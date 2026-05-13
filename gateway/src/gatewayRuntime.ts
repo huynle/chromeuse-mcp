@@ -11,6 +11,8 @@ import { HttpGatewayTransport } from "./httpGatewayTransport.js";
 import { RequestQueueTransport } from "./requestQueue.js";
 
 const DEFAULT_GATEWAY_HOST = "127.0.0.1";
+// Default local HTTP gateway coordination port for gateway/dist/index.js.
+// The extension WebSocket bridge keeps its separate default of 8765.
 const DEFAULT_GATEWAY_PORT = 8766;
 
 export type GatewayMode = "stdio" | "server" | "proxy";
@@ -61,6 +63,8 @@ export function resolveGatewayConfig(env: NodeJS.ProcessEnv = process.env): Gate
     mode,
     gatewayHost: env.CHROMEUSE_GATEWAY_HOST || DEFAULT_GATEWAY_HOST,
     gatewayPort:
+      // CHROMEUSE_HTTP_PORT is the documented zero-config override; keep the
+      // older gateway-specific name as a compatibility alias with precedence.
       parsePort(env.CHROMEUSE_GATEWAY_PORT) ??
       parsePort(env.CHROMEUSE_HTTP_PORT) ??
       DEFAULT_GATEWAY_PORT,
