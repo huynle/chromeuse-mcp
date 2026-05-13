@@ -43,6 +43,8 @@ export const TOOL_NAMES = {
   WORKSPACE_LIST_FILES: "workspace_list_files",
   /** Read text content from a file in the selected workspace */
   WORKSPACE_READ_FILE: "workspace_read_file",
+  /** Check health and connectivity of ChromeUse MCP server */
+  HEALTH_CHECK: "health_check",
 } as const;
 
 /** Union type of all valid tool name strings */

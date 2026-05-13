@@ -68,13 +68,39 @@ export interface McpDisconnectedMessage {
   readonly client_id?: string;
 }
 
+/** Request health check from extension */
+export interface HealthCheckRequest {
+  readonly type: "health_check";
+  readonly request_id: string;
+}
+
+/** Health check response from extension */
+export interface HealthCheckResponse {
+  readonly type: "health_check_response";
+  readonly request_id: string;
+  readonly status: "healthy" | "degraded" | "unhealthy";
+  readonly timestamp: number;
+  readonly responseTimeMs: number;
+  readonly cdp: {
+    readonly attached: boolean;
+    readonly tabsAttached: readonly number[];
+    readonly keepaliveActive: boolean;
+  };
+  readonly serviceWorker: {
+    readonly state: "active" | "suspended" | "unknown";
+  };
+  readonly lastError?: string;
+}
+
 /** Union of all messages the native host sends to the extension */
 export type NativeMessage =
   | ToolRequest
   | PingMessage
   | GetStatusMessage
   | McpConnectedMessage
-  | McpDisconnectedMessage;
+  | McpDisconnectedMessage
+  | HealthCheckRequest
+  | HealthCheckResponse;
 
 // ---------------------------------------------------------------------------
 // Messages sent FROM extension TO native host / MCP server (ExtensionMessage)
@@ -120,7 +146,8 @@ export interface StatusResponse {
 export type ExtensionMessage =
   | ToolResponse
   | PongMessage
-  | StatusResponse;
+  | StatusResponse
+  | HealthCheckResponse;
 
 // ---------------------------------------------------------------------------
 // All wire messages

@@ -344,6 +344,73 @@ export class CDPManager {
   }
 
   /**
+   * Check if an attached tab is healthy and responding to CDP commands.
+   * Sends a lightweight CDP command to test responsiveness.
+   *
+   * @param tabId - The tab to check
+   * @returns true if the tab responds, false if timeout/error occurs
+   */
+  async checkTabHealth(tabId: number): Promise<boolean> {
+    const connection = this.connections.get(tabId);
+    if (!connection?.attached) {
+      console.log(`[CDP] Health check failed: tab ${tabId} not attached`);
+      return false;
+    }
+
+    try {
+      // Send lightweight command to test responsiveness
+      await this.sendCommand(tabId, 'Page.getLayoutMetrics', {});
+      console.log(`[CDP] Health check passed for tab ${tabId}`);
+      return true;
+    } catch (error) {
+      console.warn(`[CDP] Health check failed for tab ${tabId}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Force a debugger detach and reattach cycle, even if we think
+   * the connection is healthy. Useful for recovering from zombie
+   * CDP sessions where the connection appears attached but is
+   * actually non-responsive.
+   *
+   * @param tabId - The tab to force reattach
+   */
+  async forceReattach(tabId: number): Promise<void> {
+    const connection = this.connections.get(tabId);
+    if (!connection) {
+      throw new Error(`No connection record for tab ${tabId}`);
+    }
+
+    console.log(`[CDP] Force reattach initiated for tab ${tabId}`);
+
+    // Save previously enabled domains
+    const previousDomains = new Set(connection.enabledDomains);
+
+    // Mark as user-initiated temporarily to prevent auto-reattach loop
+    const wasUserDetached = connection.userDetached;
+    connection.userDetached = true;
+
+    // Force detach
+    await this.detach(tabId);
+
+    // Restore flag state for the new connection
+    connection.userDetached = wasUserDetached;
+
+    // Reattach
+    await this.attach(tabId);
+
+    // Re-enable previously active domains (except Page, which attach() enables)
+    for (const domain of previousDomains) {
+      if (domain !== 'Page') {
+        await this.enableDomain(tabId, domain);
+      }
+    }
+
+    console.log(`[CDP] Force reattach completed for tab ${tabId}`);
+  }
+
+  /**
    * Register a listener for CDP events from all attached tabs.
    */
   addEventListener(listener: CDPEventListener): void {
