@@ -9,6 +9,8 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  type CallToolResult,
+  type ContentBlock as McpContentBlock,
   type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import { TOOL_NAMES } from "@chromeuse/shared";
@@ -643,7 +645,7 @@ export async function createMcpServer(
         name,
         (args ?? {}) as Record<string, unknown>
       );
-      return result;
+      return toMcpToolResult(result);
     } catch (err) {
       return {
         content: [
@@ -678,4 +680,45 @@ async function closeTransport(transport: BrowserTransport): Promise<void> {
 
 function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
+}
+
+function toMcpToolResult(result: ToolRequestResult): CallToolResult & Record<string, unknown> {
+  return {
+    ...result,
+    content: result.content.map(toMcpContentBlock),
+  };
+}
+
+function toMcpContentBlock(content: unknown): McpContentBlock {
+  if (isExtensionImageContent(content)) {
+    return {
+      type: "image",
+      data: content.source.data,
+      mimeType: content.source.media_type,
+    };
+  }
+
+  return content as McpContentBlock;
+}
+
+function isExtensionImageContent(content: unknown): content is {
+  readonly type: "image";
+  readonly source: {
+    readonly type: "base64";
+    readonly media_type: string;
+    readonly data: string;
+  };
+} {
+  if (!isRecord(content) || content.type !== "image") return false;
+  if (!isRecord(content.source)) return false;
+
+  return (
+    content.source.type === "base64" &&
+    typeof content.source.media_type === "string" &&
+    typeof content.source.data === "string"
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }

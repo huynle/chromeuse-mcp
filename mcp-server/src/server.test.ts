@@ -502,6 +502,42 @@ describe("createMcpServer", () => {
     });
   });
 
+  it("maps extension image content to MCP image content", async () => {
+    mockSocketClient.sendToolRequest.mockResolvedValue({
+      content: [
+        {
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: "image/jpeg",
+            data: "aGVsbG8=",
+          },
+        },
+        {
+          type: "text",
+          text: '{"screenshot":{"width":1200,"height":800}}',
+        },
+      ],
+    });
+
+    const result = await client.callTool({
+      name: "computer",
+      arguments: { action: "screenshot", tabId: 7 },
+    });
+
+    expect(result.content).toEqual([
+      {
+        type: "image",
+        data: "aGVsbG8=",
+        mimeType: "image/jpeg",
+      },
+      {
+        type: "text",
+        text: '{"screenshot":{"width":1200,"height":800}}',
+      },
+    ]);
+  });
+
   it("returns error when socket client throws", async () => {
     mockSocketClient.sendToolRequest.mockRejectedValue(new Error("Connection lost"));
 
