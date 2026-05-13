@@ -99,6 +99,9 @@ export class WebSocketFirstTransport implements BrowserTransport {
 // Tool schema definitions
 // ---------------------------------------------------------------------------
 
+const INTERACTION_POLICY =
+  "Default workflow: start with tabs_context to choose the target tab, read visible page text for understanding, use accessibility/read_page or find for user-visible controls, use javascript_tool only for exact state or geometry, then use computer for last-mile visual mouse/keyboard actions.";
+
 const TOOL_SCHEMAS: Tool[] = [
   {
     name: TOOL_NAMES.NAVIGATE,
@@ -126,7 +129,7 @@ const TOOL_SCHEMAS: Tool[] = [
   {
     name: TOOL_NAMES.COMPUTER,
     description:
-      "Take screenshots, click, type, scroll, drag in the browser. Coordinates are in screenshot pixel space.",
+      `Last-mile visual interaction tool for screenshots, mouse, keyboard, scroll, and drag. Prefer read_page/find refs before coordinates when possible; use count or move_path for repeated/precise mouse-heavy interactions instead of parallel calls. Coordinates are in screenshot pixel space. ${INTERACTION_POLICY}`,
     inputSchema: {
       type: "object",
       properties: {
@@ -219,7 +222,7 @@ const TOOL_SCHEMAS: Tool[] = [
   {
     name: TOOL_NAMES.READ_PAGE,
     description:
-      "Read the current page content as an accessibility tree, HTML, or plain text",
+      `Read the current page content as an accessibility tree, HTML, or plain text. Use accessibility for controls/refs before clicking, text for visible content, and HTML only when structure matters. ${INTERACTION_POLICY}`,
     inputSchema: {
       type: "object",
       properties: {
@@ -240,7 +243,7 @@ const TOOL_SCHEMAS: Tool[] = [
   {
     name: TOOL_NAMES.FIND,
     description:
-      "Find an element on the page using a natural language description. Returns element reference and bounds.",
+      `Find a user-visible element by natural language. Prefer this before computer coordinate clicks; it returns refs and bounds for buttons, links, inputs, menus, and other controls. ${INTERACTION_POLICY}`,
     inputSchema: {
       type: "object",
       properties: {
@@ -288,7 +291,7 @@ const TOOL_SCHEMAS: Tool[] = [
   {
     name: TOOL_NAMES.GET_PAGE_TEXT,
     description:
-      "Extract all visible text content from the current page. Useful for reading articles, getting page content without markup.",
+      `Read first for most pages: extract visible text content without markup to understand headings, labels, articles, prompts, blockers, and login/cookie states before acting. ${INTERACTION_POLICY}`,
     inputSchema: {
       type: "object",
       properties: {
@@ -307,7 +310,7 @@ const TOOL_SCHEMAS: Tool[] = [
   {
     name: TOOL_NAMES.JAVASCRIPT,
     description:
-      "Execute JavaScript code in the page context. Code runs via CDP Runtime.evaluate. The result of the last expression is returned.",
+      `Execute JavaScript in the page context for exact state, DOM geometry, counters, selected values, hidden app state, or verification. Do not use as the first read when visible text/accessibility is enough. ${INTERACTION_POLICY}`,
     inputSchema: {
       type: "object",
       properties: {
@@ -437,7 +440,7 @@ const TOOL_SCHEMAS: Tool[] = [
   {
     name: TOOL_NAMES.TABS_CONTEXT,
     description:
-      "Get information about all open tabs and tab groups. Returns tab IDs, titles, URLs, and group assignments.",
+      `Start here: get all open tabs and tab groups so you choose the right target tab before reading or acting. Returns tab IDs, titles, URLs, and group assignments. ${INTERACTION_POLICY}`,
     inputSchema: {
       type: "object",
       properties: {},

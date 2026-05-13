@@ -102,6 +102,15 @@ describe("getToolSchemas", () => {
     }
   });
 
+  it("advertises the default browser interaction policy", () => {
+    expect(schemaFor(TOOL_NAMES.TABS_CONTEXT).description).toMatch(/start here/i);
+    expect(schemaFor(TOOL_NAMES.GET_PAGE_TEXT).description).toMatch(/read first/i);
+    expect(schemaFor(TOOL_NAMES.READ_PAGE).description).toMatch(/accessibility/i);
+    expect(schemaFor(TOOL_NAMES.FIND).description).toMatch(/prefer.*computer/i);
+    expect(schemaFor(TOOL_NAMES.JAVASCRIPT).description).toMatch(/exact state/i);
+    expect(schemaFor(TOOL_NAMES.COMPUTER).description).toMatch(/last-mile/i);
+  });
+
   it("does not use unsupported top-level schema combinators", () => {
     for (const schema of getToolSchemas()) {
       expect(schema.inputSchema).not.toHaveProperty("anyOf");
