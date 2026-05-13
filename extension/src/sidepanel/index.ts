@@ -33,7 +33,7 @@ import type { WorkspaceFolderSelection, WorkspaceSelectedFile } from "./workspac
 // Types (mirrored from extension types to avoid import issues with esbuild)
 // ---------------------------------------------------------------------------
 
-type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
+type ConnectionStatus = "disconnected" | "connecting" | "waiting" | "connected" | "error";
 
 interface ToolExecutionEntry {
   readonly id: number;
@@ -62,6 +62,7 @@ type SidePanelBroadcast =
 const STATUS_LABELS: Record<ConnectionStatus, string> = {
   disconnected: "Disconnected",
   connecting: "Connecting\u2026",
+  waiting: "Waiting for MCP server",
   connected: "Connected",
   error: "Connection Error",
 };
@@ -141,10 +142,10 @@ function updateConnectionStatus(status: ConnectionStatus): void {
   statusText.textContent = STATUS_LABELS[status];
 
   connectBtn.disabled = status === "connecting" || status === "connected";
-  disconnectBtn.disabled = status === "disconnected" || status === "error";
+  disconnectBtn.disabled = status === "disconnected" || status === "waiting" || status === "error";
   connectionHint.classList.toggle(
     "hidden",
-    status !== "disconnected" && status !== "error",
+    status !== "disconnected" && status !== "waiting" && status !== "error",
   );
 
   // Stop button is only enabled when connected (automation may be running)

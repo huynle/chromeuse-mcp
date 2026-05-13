@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MessageRouter } from "./messageRouter.js";
 import type { ToolRequest } from "./messageRouter.js";
 import type { ToolHandler, ToolResult } from "../types/messages.js";
@@ -115,6 +115,44 @@ describe("MessageRouter", () => {
         type: "text",
         text: 'Tool "bad" failed: string error',
       });
+    });
+
+    it("serializes concurrent tool requests", async () => {
+      const router = new MessageRouter();
+      const events: string[] = [];
+      let releaseFirst: (() => void) | undefined;
+
+      router.register("slow", {
+        async execute(args) {
+          const id = args.id as string;
+          events.push(`start:${id}`);
+          if (id === "first") {
+            await new Promise<void>((resolve) => {
+              releaseFirst = resolve;
+            });
+          }
+          events.push(`finish:${id}`);
+          return { success: true, content: [{ type: "text", text: id }] };
+        },
+      });
+
+      const first = router.route(makeRequest("slow", { id: "first" }));
+      const second = router.route(makeRequest("slow", { id: "second" }));
+
+      await vi.waitFor(() => {
+        expect(events).toEqual(["start:first"]);
+      });
+
+      releaseFirst?.();
+
+      await Promise.all([first, second]);
+
+      expect(events).toEqual([
+        "start:first",
+        "finish:first",
+        "start:second",
+        "finish:second",
+      ]);
     });
   });
 });

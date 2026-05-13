@@ -234,5 +234,23 @@ describe("WebSocketConnection", () => {
       vi.advanceTimersByTime(1);
       expect(sockets).toHaveLength(3);
     });
+
+    it("waits for the MCP gateway after reconnect attempts are exhausted", () => {
+      const statuses: ConnectionStatus[] = [];
+      const conn = freshConnection();
+      conn.onConnectionStatusChange((status) => statuses.push(status));
+
+      conn.connect();
+
+      for (let attempt = 0; attempt < 10; attempt++) {
+        latestSocket().serverClose();
+        vi.advanceTimersByTime(30_000);
+      }
+
+      latestSocket().serverClose();
+
+      expect(conn.status).toBe("waiting");
+      expect(statuses).toContain("waiting");
+    });
   });
 });

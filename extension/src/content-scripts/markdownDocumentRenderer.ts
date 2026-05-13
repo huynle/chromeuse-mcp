@@ -1,4 +1,3 @@
-import mermaid from "mermaid";
 import { renderMarkdown } from "../sidepanel/markdownRenderer.js";
 
 export interface MarkdownDocumentModel {
@@ -570,9 +569,12 @@ function createStyle(doc: Document): HTMLStyleElement {
     .chromeuse-markdown-sidebar {
       position: fixed;
       inset: 0 auto 0 0;
+      display: flex;
+      flex-direction: column;
       width: 340px;
-      max-height: none;
-      overflow: auto;
+      height: 100vh;
+      box-sizing: border-box;
+      overflow: hidden;
       padding: 34px 12px 28px;
       border: 0;
       border-right: 1px solid #e3e7ee;
@@ -581,7 +583,16 @@ function createStyle(doc: Document): HTMLStyleElement {
       box-shadow: none;
     }
 
+    .chromeuse-markdown-side-panel {
+      min-height: 0;
+      overflow: auto;
+      overscroll-behavior: contain;
+      padding-bottom: 12px;
+      scrollbar-gutter: stable;
+    }
+
     .chromeuse-markdown-side-switch {
+      flex: 0 0 auto;
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 4px;
@@ -1217,17 +1228,24 @@ function applyHeadingIds(content: HTMLElement, headings: readonly MarkdownHeadin
   }
 }
 
-function renderMermaidDiagrams(doc: Document, content: HTMLElement): void {
+async function renderMermaidDiagrams(doc: Document, content: HTMLElement): Promise<void> {
   const diagrams = Array.from(content.querySelectorAll<HTMLElement>(".mermaid"));
   if (!diagrams.length) return;
 
-  mermaid.initialize({
-    startOnLoad: false,
-    theme: doc.body.classList.contains("chromeuse-theme-dark") ? "dark" : "default",
-  });
-  mermaid.run({ nodes: diagrams }).catch((error: unknown) => {
+  const moduleUrl = getChromeRuntimeUrl("dist/content-scripts/mermaidRenderer.js");
+  if (!moduleUrl) return;
+
+  try {
+    const { renderMermaidDiagrams: render } = await import(moduleUrl) as typeof import("./mermaidRenderer.js");
+    await render(doc, diagrams);
+  } catch (error: unknown) {
     console.error("Mermaid rendering error:", error);
-  });
+  }
+}
+
+function getChromeRuntimeUrl(path: string): string | null {
+  if (typeof chrome === "undefined" || !chrome.runtime?.getURL) return null;
+  return chrome.runtime.getURL(path);
 }
 
 function createOptionsMenu(doc: Document): HTMLElement {
@@ -1348,7 +1366,7 @@ export function renderCurrentMarkdownDocument(doc: Document = document, url: str
   shell.append(main);
   doc.body.className = `${doc.body.className} chromeuse-markdown-document`.trim();
   doc.body.replaceChildren(createTopControls(doc, model.source), shell);
-  renderMermaidDiagrams(doc, content);
+  void renderMermaidDiagrams(doc, content);
   return true;
 }
 

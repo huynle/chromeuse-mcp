@@ -142,6 +142,7 @@ const TOOL_SCHEMAS: Tool[] = [
             "scroll",
             "drag",
             "move",
+            "move_path",
           ],
           description: "The action to perform",
         },
@@ -179,6 +180,10 @@ const TOOL_SCHEMAS: Tool[] = [
           type: "number",
           description: "Scroll distance in pixels",
         },
+        count: {
+          type: "number",
+          description: "Number of repeated click actions to perform in one serialized request (max 100)",
+        },
         startX: {
           type: "number",
           description: 'Start X coordinate for "drag" action',
@@ -194,6 +199,18 @@ const TOOL_SCHEMAS: Tool[] = [
         endY: {
           type: "number",
           description: 'End Y coordinate for "drag" action',
+        },
+        points: {
+          type: "array",
+          description: 'Ordered screenshot-coordinate waypoints for "move_path" action',
+          items: {
+            type: "object",
+            properties: {
+              x: { type: "number" },
+              y: { type: "number" },
+            },
+            required: ["x", "y"],
+          },
         },
       },
       required: ["action", "tabId"],

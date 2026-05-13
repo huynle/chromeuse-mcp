@@ -55,7 +55,12 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["assets/icon-16.png", "assets/icon-48.png", "assets/devicons/*.svg"],
+      "resources": [
+        "assets/icon-16.png",
+        "assets/icon-48.png",
+        "assets/devicons/*.svg",
+        "dist/content-scripts/mermaidRenderer.js"
+      ],
       "matches": ["<all_urls>"]
     }
   ],

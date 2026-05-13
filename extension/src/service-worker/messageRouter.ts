@@ -24,6 +24,7 @@ export interface ToolRequest {
 
 export class MessageRouter {
   private toolRegistry = new Map<string, ToolHandler>();
+  private routeQueue: Promise<void> = Promise.resolve();
 
   /**
    * Register a tool handler by name.
@@ -44,6 +45,21 @@ export class MessageRouter {
    * Returns an error result if the tool is not registered.
    */
   async route(request: ToolRequest): Promise<ToolResult> {
+    const previous = this.routeQueue;
+    let releaseCurrent: () => void;
+    this.routeQueue = new Promise<void>((resolve) => {
+      releaseCurrent = resolve;
+    });
+
+    await previous;
+    try {
+      return await this.routeNow(request);
+    } finally {
+      releaseCurrent!();
+    }
+  }
+
+  private async routeNow(request: ToolRequest): Promise<ToolResult> {
     const { tool, args, session_scope } = request.params;
 
     const handler = this.toolRegistry.get(tool);

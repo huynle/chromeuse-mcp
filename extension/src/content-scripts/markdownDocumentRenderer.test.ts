@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as esbuild from "esbuild";
+import { fileURLToPath } from "node:url";
 import {
   addParentDirectoryEntry,
   buildFileTreeEntries,
@@ -46,6 +48,20 @@ describe("markdown document renderer", () => {
     expect(model.html).toContain('class="mermaid"');
     expect(model.html).toContain("flowchart TD");
     expect(model.html).not.toContain("language-mermaid");
+  });
+
+  it("keeps Mermaid out of the always-injected markdown content script", async () => {
+    const result = await esbuild.build({
+      entryPoints: [fileURLToPath(new URL("./markdownDocumentRenderer.ts", import.meta.url))],
+      bundle: true,
+      format: "iife",
+      target: "chrome120",
+      write: false,
+      metafile: true,
+    });
+
+    expect(Object.keys(result.metafile.inputs)).not.toContain("node_modules/mermaid/dist/mermaid.core.mjs");
+    expect(Object.keys(result.metafile.inputs).some((input) => input.includes("node_modules/mermaid/"))).toBe(false);
   });
 
   it("extracts headings for a TOC side panel", () => {

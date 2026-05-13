@@ -53,6 +53,10 @@ body {
   animation: pulse 1.5s ease-in-out infinite;
 }
 
+.dot.waiting {
+  background: #f59e0b;
+}
+
 .dot.connected {
   background: #10b981;
 }

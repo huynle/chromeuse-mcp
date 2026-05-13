@@ -32,6 +32,7 @@ export interface ToolHandler {
 export type ConnectionStatus =
   | "disconnected"
   | "connecting"
+  | "waiting"
   | "connected"
   | "error";
 
@@ -39,6 +40,7 @@ export type ConnectionStatus =
 export const BADGE_COLORS: Record<ConnectionStatus, string> = {
   disconnected: "#9CA3AF", // gray
   connecting: "#F59E0B", // amber
+  waiting: "#F59E0B", // amber
   connected: "#10B981", // green
   error: "#EF4444", // red
 };
@@ -47,6 +49,7 @@ export const BADGE_COLORS: Record<ConnectionStatus, string> = {
 export const BADGE_TEXT: Record<ConnectionStatus, string> = {
   disconnected: "",
   connecting: "...",
+  waiting: "...",
   connected: "ON",
   error: "ERR",
 };

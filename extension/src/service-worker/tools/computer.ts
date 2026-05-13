@@ -11,6 +11,7 @@
  *   scroll     - Scroll in a direction at (x, y) in screenshot coordinates.
  *   drag       - Drag from (startX, startY) to (endX, endY) in screenshot coordinates.
  *   move       - Move the mouse to (x, y) in screenshot coordinates without clicking.
+ *   move_path  - Move the mouse through multiple screenshot-coordinate points.
  *
  * Coordinate system:
  *   All (x, y) values refer to positions in the most recently captured screenshot.
@@ -36,7 +37,8 @@ type Action =
   | "key"
   | "scroll"
   | "drag"
-  | "move";
+  | "move"
+  | "move_path";
 
 type ScrollDirection = "up" | "down" | "left" | "right";
 
@@ -45,6 +47,12 @@ const SCROLL_AMOUNT = 100;
 
 /** Delay between mousePressed and mouseReleased for clicks (ms) */
 const CLICK_DELAY_MS = 50;
+
+/** Maximum repeated clicks allowed in one request */
+const MAX_CLICK_COUNT = 100;
+
+/** Maximum mouse move waypoints allowed in one request */
+const MAX_MOVE_PATH_POINTS = 200;
 
 /** Delay between drag steps (ms) */
 const DRAG_STEP_DELAY_MS = 16;
@@ -324,9 +332,11 @@ export class ComputerTool implements ToolHandler {
           return await this.drag(tabId, args);
         case "move":
           return await this.move(tabId, args);
+        case "move_path":
+          return await this.movePath(tabId, args);
         default:
           return this.error(
-            `Unknown action: "${action}". Valid actions: screenshot, click, double_click, right_click, type, key, scroll, drag, move`,
+            `Unknown action: "${action}". Valid actions: screenshot, click, double_click, right_click, type, key, scroll, drag, move, move_path`,
           );
       }
     } catch (error) {
@@ -403,6 +413,7 @@ export class ComputerTool implements ToolHandler {
     clickCount: number,
   ): Promise<ToolResult> {
     let coords = this.extractCoords(args);
+    const repeatCount = this.extractClickCount(args);
 
     // Support ref-based click: resolve element bounds from content script
     if (!coords && typeof args.ref === "string") {
@@ -421,13 +432,9 @@ export class ComputerTool implements ToolHandler {
             y: Math.round(response.bounds.y + response.bounds.height / 2),
           };
           // Skip screenshot coordinate mapping since these are already viewport coords
-          const viewport = await getViewportSize(tabId);
-          await dispatchMouseEvent(tabId, "mouseMoved", coords.x, coords.y);
-          await dispatchMouseEvent(tabId, "mousePressed", coords.x, coords.y, button, clickCount);
-          await sleep(CLICK_DELAY_MS);
-          await dispatchMouseEvent(tabId, "mouseReleased", coords.x, coords.y, button, clickCount);
+          await this.performClickSequence(tabId, coords.x, coords.y, button, clickCount, repeatCount);
           return this.success(
-            `${button === "right" ? "Right-clicked" : clickCount === 2 ? "Double-clicked" : "Clicked"} element ${args.ref} at (${coords.x}, ${coords.y})`,
+            this.formatClickMessage(button, clickCount, repeatCount, `element ${args.ref} at (${coords.x}, ${coords.y})`),
           );
         } else {
           return this.error(`Element not found: ${args.ref}`);
@@ -446,38 +453,17 @@ export class ComputerTool implements ToolHandler {
     const viewport = await getViewportSize(tabId);
     const viewportCoords = this.toViewport(coords.x, coords.y, viewport);
 
-    // Move to position first
-    await dispatchMouseEvent(
+    await this.performClickSequence(
       tabId,
-      "mouseMoved",
-      viewportCoords.x,
-      viewportCoords.y,
-    );
-
-    // Press
-    await dispatchMouseEvent(
-      tabId,
-      "mousePressed",
       viewportCoords.x,
       viewportCoords.y,
       button,
       clickCount,
-    );
-
-    await sleep(CLICK_DELAY_MS);
-
-    // Release
-    await dispatchMouseEvent(
-      tabId,
-      "mouseReleased",
-      viewportCoords.x,
-      viewportCoords.y,
-      button,
-      clickCount,
+      repeatCount,
     );
 
     return this.success(
-      `${button === "right" ? "Right-clicked" : clickCount === 2 ? "Double-clicked" : "Clicked"} at (${coords.x}, ${coords.y})`,
+      this.formatClickMessage(button, clickCount, repeatCount, `at (${coords.x}, ${coords.y})`),
     );
   }
 
@@ -652,6 +638,29 @@ export class ComputerTool implements ToolHandler {
     return this.success(`Moved mouse to (${coords.x}, ${coords.y})`);
   }
 
+  private async movePath(
+    tabId: number,
+    args: Record<string, unknown>,
+  ): Promise<ToolResult> {
+    const points = this.extractPointPath(args);
+    if (!points) {
+      return this.error("Missing required argument: points (array of { x, y } objects)");
+    }
+
+    const viewport = await getViewportSize(tabId);
+    for (const point of points) {
+      const viewportCoords = this.toViewport(point.x, point.y, viewport);
+      await dispatchMouseEvent(
+        tabId,
+        "mouseMoved",
+        viewportCoords.x,
+        viewportCoords.y,
+      );
+    }
+
+    return this.success(`Moved mouse through ${points.length} points`);
+  }
+
   // --- Utilities ---
 
   private extractCoords(
@@ -661,6 +670,56 @@ export class ComputerTool implements ToolHandler {
       return { x: args.x, y: args.y };
     }
     return null;
+  }
+
+  private extractClickCount(args: Record<string, unknown>): number {
+    if (typeof args.count !== "number") return 1;
+    if (!Number.isFinite(args.count)) return 1;
+    return Math.max(1, Math.min(MAX_CLICK_COUNT, Math.floor(args.count)));
+  }
+
+  private extractPointPath(
+    args: Record<string, unknown>,
+  ): Array<{ x: number; y: number }> | null {
+    if (!Array.isArray(args.points)) return null;
+
+    const points: Array<{ x: number; y: number }> = [];
+    for (const value of args.points.slice(0, MAX_MOVE_PATH_POINTS)) {
+      if (!value || typeof value !== "object") return null;
+      const point = value as Record<string, unknown>;
+      if (typeof point.x !== "number" || typeof point.y !== "number") return null;
+      points.push({ x: point.x, y: point.y });
+    }
+
+    return points.length > 0 ? points : null;
+  }
+
+  private async performClickSequence(
+    tabId: number,
+    x: number,
+    y: number,
+    button: "left" | "right",
+    clickCount: number,
+    repeatCount: number,
+  ): Promise<void> {
+    await dispatchMouseEvent(tabId, "mouseMoved", x, y);
+
+    for (let i = 0; i < repeatCount; i++) {
+      await dispatchMouseEvent(tabId, "mousePressed", x, y, button, clickCount);
+      await sleep(CLICK_DELAY_MS);
+      await dispatchMouseEvent(tabId, "mouseReleased", x, y, button, clickCount);
+    }
+  }
+
+  private formatClickMessage(
+    button: "left" | "right",
+    clickCount: number,
+    repeatCount: number,
+    target: string,
+  ): string {
+    const action = button === "right" ? "Right-clicked" : clickCount === 2 ? "Double-clicked" : "Clicked";
+    if (repeatCount === 1) return `${action} ${target}`;
+    return `${action} ${repeatCount} times ${target}`;
   }
 
   /**

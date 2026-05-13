@@ -86,6 +86,11 @@ function syncBrowserTransportStatus(): void {
     return;
   }
 
+  if (websocketStatus === "waiting" || nativeStatus === "waiting") {
+    setConnectionStatus("waiting");
+    return;
+  }
+
   if (websocketStatus === "error" || nativeStatus === "error") {
     setConnectionStatus("error");
     return;

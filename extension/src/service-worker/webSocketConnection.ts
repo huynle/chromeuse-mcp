@@ -115,9 +115,9 @@ export class WebSocketConnection {
 
     if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
       console.error(
-        `[WebSocketConnection] Max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}) reached. Giving up.`,
+        `[WebSocketConnection] Max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}) reached. Waiting for MCP gateway.`,
       );
-      this.setStatus("error");
+      this.setStatus("waiting");
       return;
     }
 

@@ -56,6 +56,14 @@ const contentScriptOptions: esbuild.BuildOptions = {
   splitting: false,
 }
 
+/** Heavy markdown helpers loaded only by markdownDocumentRenderer when needed. */
+const markdownModuleOptions: esbuild.BuildOptions = {
+  ...sharedOptions,
+  entryPoints: [join(__dirname, 'src/content-scripts/mermaidRenderer.ts')],
+  format: 'esm',
+  splitting: false,
+}
+
 /** Offscreen document: loaded as ES module from offscreen.html */
 const offscreenOptions: esbuild.BuildOptions = {
   ...sharedOptions,
@@ -103,6 +111,7 @@ async function build(): Promise<void> {
     await Promise.all([
       esbuild.build(serviceWorkerOptions),
       esbuild.build(contentScriptOptions),
+      esbuild.build(markdownModuleOptions),
       esbuild.build(offscreenOptions),
       esbuild.build(sidePanelOptions),
     ])
