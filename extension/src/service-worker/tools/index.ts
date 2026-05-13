@@ -16,6 +16,7 @@ import { FindTool } from "./find.js";
 import { FormInputTool } from "./formInput.js";
 import { GetPageTextTool } from "./getPageText.js";
 import { GifCreatorTool } from "./gifCreator.js";
+import { HealthCheckTool } from "./healthCheck.js";
 import { JavaScriptTool } from "./javascript.js";
 import { MarkdownRenderTool } from "./markdownRender.js";
 import { NavigateTool } from "./navigate.js";
@@ -42,6 +43,7 @@ export function registerTools(router: MessageRouter): void {
   router.register(TOOL_NAMES.FORM_INPUT, new FormInputTool());
   router.register(TOOL_NAMES.GET_PAGE_TEXT, new GetPageTextTool());
   router.register(TOOL_NAMES.GIF_CREATOR, new GifCreatorTool());
+  router.register(TOOL_NAMES.HEALTH_CHECK, new HealthCheckTool());
   router.register(TOOL_NAMES.JAVASCRIPT, new JavaScriptTool());
   router.register(TOOL_NAMES.MARKDOWN_RENDER, new MarkdownRenderTool());
   router.register(TOOL_NAMES.NAVIGATE, new NavigateTool());
