@@ -13,6 +13,7 @@
  */
 
 import { renderDocumentViewer, type WorkspaceDocument } from "./documentViewer.js";
+import { getConnectionControlsState } from "./connectionControls.js";
 import {
   isMarkdownWorkspaceFile,
   renderWorkspaceMarkdownFile,
@@ -62,7 +63,7 @@ type SidePanelBroadcast =
 const STATUS_LABELS: Record<ConnectionStatus, string> = {
   disconnected: "Disconnected",
   connecting: "Connecting\u2026",
-  waiting: "Waiting for MCP server",
+  waiting: "Waiting for gateway\u2026",
   connected: "Connected",
   error: "Connection Error",
 };
@@ -141,15 +142,16 @@ function updateConnectionStatus(status: ConnectionStatus): void {
   // Update text
   statusText.textContent = STATUS_LABELS[status];
 
-  connectBtn.disabled = status === "connecting" || status === "connected";
-  disconnectBtn.disabled = status === "disconnected" || status === "waiting" || status === "error";
+  const controls = getConnectionControlsState(status);
+  connectBtn.disabled = controls.connectDisabled;
+  disconnectBtn.disabled = controls.disconnectDisabled;
   connectionHint.classList.toggle(
     "hidden",
     status !== "disconnected" && status !== "waiting" && status !== "error",
   );
 
   // Stop button is only enabled when connected (automation may be running)
-  stopBtn.disabled = status !== "connected";
+  stopBtn.disabled = controls.stopDisabled;
 }
 
 function formatTime(timestamp: number): string {

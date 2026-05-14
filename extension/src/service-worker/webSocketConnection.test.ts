@@ -35,6 +35,10 @@ class MockWebSocket {
     this.onmessage?.(new MessageEvent("message", { data: String(data) }));
   }
 
+  fail() {
+    this.onerror?.(new Event("error"));
+  }
+
   serverClose() {
     this.readyState = MockWebSocket.CLOSED;
     this.onclose?.(new CloseEvent("close"));
@@ -245,6 +249,35 @@ describe("WebSocketConnection", () => {
       expect(sockets).toHaveLength(2);
       vi.advanceTimersByTime(1);
       expect(sockets).toHaveLength(3);
+    });
+
+    it("stays waiting instead of disconnecting while retrying a lost gateway", () => {
+      const statuses: ConnectionStatus[] = [];
+      const conn = freshConnection();
+      conn.onConnectionStatusChange((status) => statuses.push(status));
+
+      conn.connect();
+      latestSocket().open();
+      latestSocket().serverClose();
+
+      expect(conn.status).toBe("waiting");
+      expect(statuses).toEqual(["connecting", "connected", "waiting"]);
+
+      vi.advanceTimersByTime(1000);
+
+      expect(conn.status).toBe("connecting");
+    });
+
+    it("shows waiting rather than error while a user-initiated gateway connect is retryable", () => {
+      const statuses: ConnectionStatus[] = [];
+      const conn = freshConnection();
+      conn.onConnectionStatusChange((status) => statuses.push(status));
+
+      conn.connect();
+      latestSocket().fail();
+
+      expect(conn.status).toBe("waiting");
+      expect(statuses).toEqual(["connecting", "waiting"]);
     });
 
     it("waits for the MCP gateway after reconnect attempts are exhausted", () => {

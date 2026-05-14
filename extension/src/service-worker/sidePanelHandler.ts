@@ -141,10 +141,7 @@ export function initSidePanelHandler(): void {
           if (webSocketConnection.status !== "disconnected") {
             webSocketConnection.disconnect();
           } else {
-            // Preserve native-host stop behavior while allowing WebSocket sessions
-            // to stop without forcing a native transport reconnect.
             nativeMessaging.disconnect();
-            setTimeout(() => nativeMessaging.connect(), 500);
           }
           sendResponse({ success: true });
           return false;

@@ -91,6 +91,18 @@ describe("sidePanelHandler", () => {
     expect(nativeMessaging.connect).not.toHaveBeenCalled();
   });
 
+  it("does not start native messaging from stop automation when no WebSocket session is active", () => {
+    webSocketConnection.status = "disconnected";
+    initSidePanelHandler();
+
+    const stop = sendRuntimeMessage({ action: "sidepanel_stop_automation" });
+
+    expect(stop.sendResponse).toHaveBeenCalledWith({ success: true });
+    expect(webSocketConnection.disconnect).not.toHaveBeenCalled();
+    expect(nativeMessaging.disconnect).toHaveBeenCalledOnce();
+    expect(nativeMessaging.connect).not.toHaveBeenCalled();
+  });
+
   it("updates the action badge from the combined connection status", () => {
     setConnectionStatus("connected");
 

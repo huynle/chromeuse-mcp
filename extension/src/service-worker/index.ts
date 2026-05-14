@@ -18,6 +18,7 @@ import { webSocketConnection } from "./webSocketConnection.js";
 import { messageRouter } from "./messageRouter.js";
 import { updateBadge } from "./badge.js";
 import { cdpManager } from "./cdp.js";
+import { resolveBrowserTransportStatus } from "./connectionStatus.js";
 import { initAutomationIndicator } from "./automationIndicator.js";
 import {
   initSidePanelHandler,
@@ -75,38 +76,15 @@ cdpManager.initialize().catch((err) => {
 // --- Browser transport connections ---
 
 function syncBrowserTransportStatus(): void {
-  const websocketStatus = webSocketConnection.status;
-  const nativeStatus = nativeMessaging.status;
-
-  if (websocketStatus === "connected" || nativeStatus === "connected") {
-    setConnectionStatus("connected");
-    return;
-  }
-
-  if (websocketStatus === "connecting" || nativeStatus === "connecting") {
-    setConnectionStatus("connecting");
-    return;
-  }
-
-  if (websocketStatus === "waiting" || nativeStatus === "waiting") {
-    setConnectionStatus("waiting");
-    return;
-  }
-
-  if (websocketStatus === "error" || nativeStatus === "error") {
-    setConnectionStatus("error");
-    return;
-  }
-
-  setConnectionStatus("disconnected");
+  setConnectionStatus(
+    resolveBrowserTransportStatus(webSocketConnection.status, nativeMessaging.status),
+  );
 }
 
 // Keep the side panel showing the combined state across WebSocket and native
 // messaging, so managed-Chrome native failures do not hide a live WebSocket.
 nativeMessaging.onConnectionStatusChange(syncBrowserTransportStatus);
 webSocketConnection.onConnectionStatusChange(syncBrowserTransportStatus);
-
-nativeMessaging.connect();
 
 // ---------------------------------------------------------------------------
 // Lifecycle Events
@@ -130,5 +108,4 @@ chrome.runtime.onInstalled.addListener((details) => {
  */
 chrome.runtime.onStartup.addListener(() => {
   console.log("[ServiceWorker] Starting up");
-  nativeMessaging.connect();
 });

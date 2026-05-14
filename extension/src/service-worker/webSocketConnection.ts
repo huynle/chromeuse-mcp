@@ -61,13 +61,13 @@ export class WebSocketConnection {
 
       socket.onerror = () => {
         if (this.socket !== socket) return;
-        this.setStatus("error");
+        this.setStatus(this.shouldReconnect ? "waiting" : "error");
       };
 
       socket.onclose = () => {
         if (this.socket !== socket) return;
         this.socket = null;
-        this.setStatus("disconnected");
+        this.setStatus(this.shouldReconnect ? "waiting" : "disconnected");
         this.scheduleReconnect();
       };
     } catch (error) {
@@ -215,6 +215,7 @@ export class WebSocketConnection {
   }
 
   private setStatus(status: ConnectionStatus): void {
+    if (this._status === status) return;
     this._status = status;
     this.onStatusChange?.(status);
   }
