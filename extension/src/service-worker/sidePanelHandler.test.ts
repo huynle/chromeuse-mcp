@@ -38,6 +38,7 @@ const chromeStub = {
   },
   sidePanel: {
     open: vi.fn(() => Promise.resolve()),
+    setPanelBehavior: vi.fn(() => Promise.resolve()),
   },
   alarms: {
     create: vi.fn(),
@@ -111,5 +112,14 @@ describe("sidePanelHandler", () => {
 
     expect(state.sendResponse).toHaveBeenCalledOnce();
     expect(webSocketConnection.recoverFromActivity).toHaveBeenCalledOnce();
+  });
+
+  it("enables toolbar icon side panel toggling", () => {
+    initSidePanelHandler();
+
+    expect(chromeStub.sidePanel.setPanelBehavior).toHaveBeenCalledWith({
+      openPanelOnActionClick: true,
+    });
+    expect(chromeStub.action.onClicked.addListener).not.toHaveBeenCalled();
   });
 });

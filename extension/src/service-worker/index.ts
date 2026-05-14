@@ -18,6 +18,7 @@ import { webSocketConnection } from "./webSocketConnection.js";
 import { messageRouter } from "./messageRouter.js";
 import { updateBadge } from "./badge.js";
 import { cdpManager } from "./cdp.js";
+import { initAutomationIndicator } from "./automationIndicator.js";
 import {
   initSidePanelHandler,
   setConnectionStatus,
@@ -37,6 +38,7 @@ registerTools(messageRouter);
 // --- Side panel handler ---
 
 initSidePanelHandler();
+initAutomationIndicator();
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!message || typeof message !== "object" || message.action !== "chromeuse_fetch_directory_listing") {

@@ -403,13 +403,16 @@ export class ComputerTool implements ToolHandler {
     args: Record<string, unknown>,
     _context: ToolContext,
   ): Promise<ToolResult> {
+    let tabId: number | undefined;
+    let attachedForCall = false;
+
     try {
       const action = args.action as Action | undefined;
       if (!action) {
         return this.error("Missing required argument: action");
       }
 
-      const tabId = args.tabId as number | undefined;
+      tabId = args.tabId as number | undefined;
       if (typeof tabId !== "number") {
         return this.error("Missing required argument: tabId (number)");
       }
@@ -417,6 +420,7 @@ export class ComputerTool implements ToolHandler {
       // Ensure CDP is attached
       if (!cdpManager.isAttached(tabId)) {
         await cdpManager.attach(tabId);
+        attachedForCall = true;
       }
 
       switch (action) {
@@ -449,6 +453,10 @@ export class ComputerTool implements ToolHandler {
       return this.error(
         `computer tool failed: ${error instanceof Error ? error.message : String(error)}`,
       );
+    } finally {
+      if (attachedForCall && typeof tabId === "number") {
+        await cdpManager.detach(tabId);
+      }
     }
   }
 

@@ -10,6 +10,7 @@ import type {
   ToolResult,
   ToolContext,
 } from "../types/messages.js";
+import { markAutomationTab } from "./automationIndicator.js";
 
 export interface ToolRequest {
   method: string;
@@ -80,6 +81,9 @@ export class MessageRouter {
     };
 
     try {
+      if (typeof args.tabId === "number") {
+        await markAutomationTab(args.tabId);
+      }
       return await handler.execute(args, context);
     } catch (error) {
       return {

@@ -16,6 +16,7 @@ import type {
   ToolExecutionEntry,
 } from "../types/messages.js";
 import { updateBadge } from "./badge.js";
+import { clearAutomationIndicators } from "./automationIndicator.js";
 import { nativeMessaging } from "./nativeMessaging.js";
 import { webSocketConnection } from "./webSocketConnection.js";
 
@@ -136,6 +137,7 @@ export function initSidePanelHandler(): void {
 
         case "sidepanel_stop_automation":
         case "stop_automation":
+          void clearAutomationIndicators();
           if (webSocketConnection.status !== "disconnected") {
             webSocketConnection.disconnect();
           } else {
@@ -153,12 +155,9 @@ export function initSidePanelHandler(): void {
     },
   );
 
-  // Open side panel when the extension action (toolbar icon) is clicked
-  chrome.action.onClicked.addListener((tab) => {
-    if (tab.id != null) {
-      chrome.sidePanel.open({ tabId: tab.id }).catch((err: unknown) => {
-        console.error("[SidePanelHandler] Failed to open side panel:", err);
-      });
-    }
-  });
+  chrome.sidePanel
+    .setPanelBehavior({ openPanelOnActionClick: true })
+    .catch((err: unknown) => {
+      console.error("[SidePanelHandler] Failed to enable action side panel toggle:", err);
+    });
 }

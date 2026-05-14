@@ -1,7 +1,7 @@
 /**
  * Visual Indicator Content Script
  *
- * Shows a pulsing blue glow border and stop button when browser automation
+ * Shows a pulsing red glow border and stop button when browser automation
  * is active. Automatically hides during screenshots and restores after.
  *
  * Messages handled:
@@ -40,12 +40,12 @@ function showIndicator(): void {
   styleElement.textContent = `
     @keyframes ${ANIMATION_NAME} {
       0%, 100% {
-        border-color: rgba(59, 130, 246, 0.6);
-        box-shadow: inset 0 0 20px rgba(59, 130, 246, 0.15);
+        border-color: rgba(239, 68, 68, 0.8);
+        box-shadow: inset 0 0 22px rgba(239, 68, 68, 0.18);
       }
       50% {
-        border-color: rgba(59, 130, 246, 0.3);
-        box-shadow: inset 0 0 10px rgba(59, 130, 246, 0.05);
+        border-color: rgba(239, 68, 68, 0.45);
+        box-shadow: inset 0 0 12px rgba(239, 68, 68, 0.08);
       }
     }
   `;
@@ -62,8 +62,8 @@ function showIndicator(): void {
     'bottom: 0',
     'pointer-events: none',
     'z-index: 2147483647',
-    'border: 3px solid rgba(59, 130, 246, 0.6)',
-    'box-shadow: inset 0 0 20px rgba(59, 130, 246, 0.15)',
+    'border: 3px solid rgba(239, 68, 68, 0.8)',
+    'box-shadow: inset 0 0 22px rgba(239, 68, 68, 0.18)',
     `animation: ${ANIMATION_NAME} 2s ease-in-out infinite`,
     'box-sizing: border-box',
   ].join('; ');

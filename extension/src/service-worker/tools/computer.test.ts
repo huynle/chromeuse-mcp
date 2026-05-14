@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const sendCommand = vi.fn();
 const attach = vi.fn();
+const detach = vi.fn();
 const isAttached = vi.fn(() => true);
 
 vi.mock("../cdp.js", () => ({
   cdpManager: {
     attach,
+    detach,
     isAttached,
     sendCommand,
   },
@@ -52,6 +54,26 @@ describe("ComputerTool", () => {
       "mousePressed",
       "mouseReleased",
     ]);
+  });
+
+  it("detaches after one-shot computer calls it attached for", async () => {
+    isAttached.mockReturnValue(false);
+    const tool = new ComputerTool();
+
+    await tool.execute({ action: "click", tabId: 1, x: 100, y: 200 }, {});
+
+    expect(attach).toHaveBeenCalledWith(1);
+    expect(detach).toHaveBeenCalledWith(1);
+  });
+
+  it("preserves existing CDP attachments it did not create", async () => {
+    isAttached.mockReturnValue(true);
+    const tool = new ComputerTool();
+
+    await tool.execute({ action: "click", tabId: 1, x: 100, y: 200 }, {});
+
+    expect(attach).not.toHaveBeenCalled();
+    expect(detach).not.toHaveBeenCalled();
   });
 
   it("moves through multiple points in one tool request", async () => {

@@ -13,6 +13,7 @@ import type {
   ToolResult,
   ToolContext,
 } from "../../types/messages.js";
+import { markAutomationTab } from "../automationIndicator.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -169,6 +170,8 @@ export class NavigateTool implements ToolHandler {
           content: [{ type: "text", text: `Tab ${tabId} not found` }],
         };
       }
+
+      await markAutomationTab(tabId);
 
       // --- Execute the navigation action ---
       switch (action) {
