@@ -43,6 +43,8 @@ export const TOOL_NAMES = {
   WORKSPACE_LIST_FILES: "workspace_list_files",
   /** Read text content from a file in the selected workspace */
   WORKSPACE_READ_FILE: "workspace_read_file",
+  /** Write a file to the selected workspace using FileSystem Access API */
+  WORKSPACE_WRITE_FILE: "workspace_write_file",
   /** Check health and connectivity of ChromeUse MCP server */
   HEALTH_CHECK: "health_check",
   /** Save a resource from a URL to local filesystem */

@@ -19,6 +19,7 @@ import type {
   ToolResult,
   ToolContext,
 } from "../../types/messages.js";
+import { WorkspaceWriteTool } from "./workspaceWrite.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -127,7 +128,25 @@ export class SaveResourceTool implements ToolHandler {
         savePath = finalFilename;
       }
 
-      // --- Trigger Chrome download with hidden shelf ---
+      // --- Try workspace FileSystem API first (truly silent) ---
+      if (outputPath) {
+        const workspaceWriter = new WorkspaceWriteTool();
+        const workspaceResult = await workspaceWriter.execute(
+          {
+            path: outputPath.endsWith("/") ? outputPath + finalFilename : outputPath,
+            dataUrl: fetchResult.dataUrl,
+            createDirectories: true,
+          },
+          _context,
+        );
+
+        if (workspaceResult.success) {
+          return workspaceResult;
+        }
+        // If workspace write failed, fall back to downloads API
+      }
+
+      // --- Fallback: Trigger Chrome download with hidden shelf ---
       // Suppress the download shelf (bottom bar) for cleaner automation
       chrome.downloads.setShelfEnabled(false);
       
