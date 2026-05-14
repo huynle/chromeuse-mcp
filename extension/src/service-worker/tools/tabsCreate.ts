@@ -12,7 +12,7 @@ import type {
   ToolResult,
   ToolContext,
 } from "../../types/messages.js";
-import { markAutomationTab } from "../automationIndicator.js";
+import { recordAutomationTab } from "../sidePanelHandler.js";
 import { tabGroupManager } from "../tabGroups.js";
 
 export class TabsCreateTool implements ToolHandler {
@@ -43,7 +43,7 @@ export class TabsCreateTool implements ToolHandler {
         };
       }
 
-      await markAutomationTab(tab.id);
+      recordAutomationTab(tab);
 
       // Add to ChromeUse tab group
       let groupId: number | undefined;

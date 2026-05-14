@@ -479,10 +479,15 @@ describe("createMcpServer", () => {
       arguments: { action: "goto", url: "https://example.com" },
     });
 
-    expect(mockSocketClient.sendToolRequest).toHaveBeenCalledWith("navigate", {
-      action: "goto",
-      url: "https://example.com",
-    });
+    expect(mockSocketClient.sendToolRequest).toHaveBeenCalledWith(
+      "navigate",
+      {
+        action: "goto",
+        url: "https://example.com",
+      },
+      undefined,
+      { clientId: expect.stringMatching(/^chromeuse-mcp-\d+-[a-z0-9]+$/) },
+    );
     expect(result.content).toEqual([
       { type: "text", text: "Navigated to: https://example.com" },
     ]);
@@ -500,10 +505,15 @@ describe("createMcpServer", () => {
       arguments: { action: "screenshot", tabId: 7 },
     });
 
-    expect(mockSocketClient.sendToolRequest).toHaveBeenCalledWith("computer", {
-      action: "screenshot",
-      tabId: 7,
-    });
+    expect(mockSocketClient.sendToolRequest).toHaveBeenCalledWith(
+      "computer",
+      {
+        action: "screenshot",
+        tabId: 7,
+      },
+      undefined,
+      { clientId: expect.stringMatching(/^chromeuse-mcp-\d+-[a-z0-9]+$/) },
+    );
     expect(result).toEqual({
       content: [{ type: "text", text: "Permission denied" }],
       isError: true,

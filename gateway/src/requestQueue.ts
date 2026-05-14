@@ -1,9 +1,10 @@
-import type { BrowserTransport, ToolRequestResult } from "@chromeuse/mcp-server";
+import type { BrowserTransport, ToolRequestMetadata, ToolRequestResult } from "@chromeuse/mcp-server";
 
 interface QueuedRequest {
   readonly tool: string;
   readonly args: Record<string, unknown>;
   readonly timeoutMs?: number;
+  readonly metadata?: ToolRequestMetadata;
   readonly resolve: (result: ToolRequestResult) => void;
   readonly reject: (error: Error) => void;
   settled: boolean;
@@ -35,7 +36,8 @@ export class RequestQueueTransport implements BrowserTransport {
   sendToolRequest(
     tool: string,
     args: Record<string, unknown>,
-    timeoutMs?: number
+    timeoutMs?: number,
+    metadata?: ToolRequestMetadata
   ): Promise<ToolRequestResult> {
     if (this.disconnected || !this.transport.connected) {
       return Promise.reject(new Error("No extension connected"));
@@ -46,6 +48,7 @@ export class RequestQueueTransport implements BrowserTransport {
         tool,
         args,
         timeoutMs,
+        metadata,
         resolve,
         reject,
         settled: false,
@@ -75,8 +78,16 @@ export class RequestQueueTransport implements BrowserTransport {
 
     this.activeRequest = request;
     this.logDepth();
-    this.transport
-      .sendToolRequest(request.tool, request.args, request.timeoutMs)
+    const result = request.metadata
+      ? this.transport.sendToolRequest(
+          request.tool,
+          request.args,
+          request.timeoutMs,
+          request.metadata
+        )
+      : this.transport.sendToolRequest(request.tool, request.args, request.timeoutMs);
+
+    result
       .then((result) => {
         if (request.settled) return;
         this.resolveRequest(request, result);

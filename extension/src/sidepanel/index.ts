@@ -45,14 +45,25 @@ interface ToolExecutionEntry {
   readonly error?: string;
 }
 
+interface AutomationTabEntry {
+  readonly tabId: number;
+  readonly title: string;
+  readonly url: string;
+  readonly windowId: number;
+  readonly active: boolean;
+  readonly isAutomating: boolean;
+}
+
 interface SidePanelState {
   readonly connectionStatus: ConnectionStatus;
   readonly toolHistory: readonly ToolExecutionEntry[];
+  readonly automationTabs: readonly AutomationTabEntry[];
 }
 
 type SidePanelBroadcast =
   | { readonly type: "connection_status_changed"; readonly status: ConnectionStatus }
   | { readonly type: "tool_execution_update"; readonly entry: ToolExecutionEntry }
+  | { readonly type: "automation_tabs_changed"; readonly tabs: readonly AutomationTabEntry[] }
   | { readonly type: "workspace_document_opened"; readonly document: WorkspaceDocument }
   | { readonly type: "workspace_markdown_file_opened"; readonly file: WorkspaceMarkdownFile };
 
@@ -84,6 +95,7 @@ const connectBtn = document.getElementById("connect-btn") as HTMLButtonElement;
 const disconnectBtn = document.getElementById("disconnect-btn") as HTMLButtonElement;
 const stopBtn = document.getElementById("stop-btn") as HTMLButtonElement;
 const connectionHint = document.getElementById("connection-hint") as HTMLElement;
+const automationTabsEl = document.getElementById("automation-tabs") as HTMLDivElement;
 const toolHistoryEl = document.getElementById("tool-history") as HTMLDivElement;
 const documentSection = document.getElementById("document-section") as HTMLElement;
 const markdownSection = documentSection;
@@ -238,6 +250,63 @@ function renderFullHistory(entries: readonly ToolExecutionEntry[]): void {
     const el = renderToolEntry(entry);
     entryElements.set(entry.id, el);
     toolHistoryEl.appendChild(el);
+  }
+}
+
+function renderAutomationTabs(tabs: readonly AutomationTabEntry[]): void {
+  automationTabsEl.innerHTML = "";
+
+  if (tabs.length === 0) {
+    automationTabsEl.innerHTML = '<p class="empty-state">No ChromeUse tabs yet.</p>';
+    return;
+  }
+
+  for (const tab of tabs) {
+    const item = document.createElement("div");
+    item.className = `automation-tab${tab.active ? " active" : ""}${tab.isAutomating ? " automating" : ""}`;
+    item.dataset.tabId = String(tab.tabId);
+
+    const focusButton = document.createElement("button");
+    focusButton.type = "button";
+    focusButton.className = "automation-tab-main";
+    focusButton.dataset.action = "focus";
+    focusButton.dataset.tabId = String(tab.tabId);
+
+    const title = document.createElement("span");
+    title.className = "automation-tab-title";
+    title.textContent = tab.title || tab.url || `Tab ${tab.tabId}`;
+
+    const url = document.createElement("span");
+    url.className = "automation-tab-url";
+    url.textContent = tab.url || "New tab";
+
+    focusButton.append(title, url);
+
+    const actions = document.createElement("div");
+    actions.className = "automation-tab-actions";
+
+    const stopButton = document.createElement("button");
+    stopButton.type = "button";
+    stopButton.className = "automation-tab-icon stop";
+    stopButton.dataset.action = "stop";
+    stopButton.dataset.tabId = String(tab.tabId);
+    stopButton.disabled = !tab.isAutomating;
+    stopButton.title = tab.isAutomating ? "Stop automation in this tab" : "No active automation in this tab";
+    stopButton.setAttribute("aria-label", "Stop automation in this tab");
+    stopButton.textContent = "■";
+
+    const closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.className = "automation-tab-icon close";
+    closeButton.dataset.action = "close";
+    closeButton.dataset.tabId = String(tab.tabId);
+    closeButton.title = "Close this tab";
+    closeButton.setAttribute("aria-label", "Close this tab");
+    closeButton.textContent = "×";
+
+    actions.append(stopButton, closeButton);
+    item.append(focusButton, actions);
+    automationTabsEl.appendChild(item);
   }
 }
 
@@ -626,6 +695,7 @@ async function requestInitialState(): Promise<void> {
     });
     if (state) {
       updateConnectionStatus(state.connectionStatus);
+      renderAutomationTabs(state.automationTabs ?? []);
       renderFullHistory(state.toolHistory);
     }
   } catch {
@@ -681,6 +751,9 @@ function listenForBroadcasts(): void {
           break;
         case "tool_execution_update":
           addOrUpdateToolEntry(message.entry);
+          break;
+        case "automation_tabs_changed":
+          renderAutomationTabs(message.tabs);
           break;
         case "workspace_document_opened":
           openWorkspaceDocument(message.document);
@@ -738,6 +811,35 @@ stopBtn.addEventListener("click", async () => {
     });
   } catch {
     console.error("[SidePanel] Failed to send stop message");
+  }
+});
+
+automationTabsEl.addEventListener("click", async (event) => {
+  const target = event.target instanceof Element
+    ? event.target.closest<HTMLButtonElement>("[data-action][data-tab-id]")
+    : null;
+  if (!target) return;
+
+  const tabId = Number(target.dataset.tabId);
+  if (!Number.isFinite(tabId)) return;
+
+  const action = target.dataset.action;
+  const messageAction = action === "stop"
+    ? "sidepanel_stop_tab_automation"
+    : action === "close"
+      ? "sidepanel_close_tab"
+      : "sidepanel_focus_tab";
+
+  target.disabled = true;
+  try {
+    await chrome.runtime.sendMessage({
+      action: messageAction,
+      tabId,
+    });
+  } catch {
+    console.error(`[SidePanel] Failed to ${action ?? "focus"} ChromeUse tab`);
+  } finally {
+    target.disabled = false;
   }
 });
 

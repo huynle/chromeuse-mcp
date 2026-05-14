@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const sendCommand = vi.fn();
 const attach = vi.fn();
@@ -26,6 +26,10 @@ describe("ComputerTool", () => {
       }
       return {};
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("performs repeated clicks in a single tool request", async () => {
@@ -56,14 +60,32 @@ describe("ComputerTool", () => {
     ]);
   });
 
-  it("detaches after one-shot computer calls it attached for", async () => {
+  it("keeps one-shot computer attachments alive briefly to avoid debugger infobar flicker", async () => {
+    vi.useFakeTimers();
     isAttached.mockReturnValue(false);
     const tool = new ComputerTool();
 
-    await tool.execute({ action: "click", tabId: 1, x: 100, y: 200 }, {});
+    await tool.execute({ action: "key", tabId: 1, key: "Enter" }, {});
 
     expect(attach).toHaveBeenCalledWith(1);
+    expect(detach).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(3000);
+
     expect(detach).toHaveBeenCalledWith(1);
+  });
+
+  it("cancels a pending detach when another computer action starts on the tab", async () => {
+    vi.useFakeTimers();
+    isAttached.mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const tool = new ComputerTool();
+
+    await tool.execute({ action: "key", tabId: 1, key: "Enter" }, {});
+    await vi.advanceTimersByTimeAsync(2500);
+    await tool.execute({ action: "key", tabId: 1, key: "Tab" }, {});
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(detach).not.toHaveBeenCalled();
   });
 
   it("preserves existing CDP attachments it did not create", async () => {

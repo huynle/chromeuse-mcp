@@ -19,18 +19,21 @@ interface ToolGatewayResponse {
 
 export interface HttpGatewayTransportOptions {
   readonly fetch?: typeof globalThis.fetch;
+  readonly clientId?: string;
   readonly logger?: (message: string) => void;
 }
 
 export class HttpGatewayTransport implements BrowserTransport {
   private readonly baseUrl: string;
   private readonly fetch: typeof globalThis.fetch;
+  private readonly clientId?: string;
   private readonly logger?: (message: string) => void;
   private _connected = false;
 
   constructor(baseUrl: string, options: HttpGatewayTransportOptions = {}) {
     this.baseUrl = baseUrl.replace(/\/+$/, "");
     this.fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+    this.clientId = options.clientId;
     this.logger = options.logger;
   }
 
@@ -83,7 +86,12 @@ export class HttpGatewayTransport implements BrowserTransport {
       const response = await this.fetch(`${this.baseUrl}/tool`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ tool, args, timeoutMs }),
+        body: JSON.stringify({
+          tool,
+          args,
+          timeoutMs,
+          ...(this.clientId ? { client_id: this.clientId } : {}),
+        }),
         signal: abortController.signal,
       });
       if (!response.ok) {

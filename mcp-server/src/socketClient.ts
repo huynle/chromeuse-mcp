@@ -20,7 +20,7 @@ import {
   type ToolRequest,
   type ToolResponse,
 } from "@chromeuse/shared";
-import type { BrowserTransport, ToolRequestResult } from "./transport.js";
+import type { BrowserTransport, ToolRequestMetadata, ToolRequestResult } from "./transport.js";
 
 /** Default timeout for tool requests (60 seconds) */
 export const DEFAULT_TIMEOUT_MS = 60_000;
@@ -160,7 +160,8 @@ export class SocketClient implements BrowserTransport {
   async sendToolRequest(
     tool: string,
     args: Record<string, unknown>,
-    timeoutMs: number = DEFAULT_TIMEOUT_MS
+    timeoutMs: number = DEFAULT_TIMEOUT_MS,
+    metadata: ToolRequestMetadata = {}
   ): Promise<ToolRequestResult> {
     if (!this.socket || !this._connected) {
       throw new Error("Not connected to native host");
@@ -170,7 +171,13 @@ export class SocketClient implements BrowserTransport {
     const request: ToolRequest = {
       type: "tool_request",
       method: "execute_tool",
-      params: { request_id: requestId, tool, args } as ToolRequest["params"],
+      params: {
+        request_id: requestId,
+        tool,
+        args,
+        ...(metadata.clientId ? { client_id: metadata.clientId } : {}),
+        ...(metadata.sessionScope ? { session_scope: metadata.sessionScope } : {}),
+      } as ToolRequest["params"],
     };
 
     const encoded = encode(request);

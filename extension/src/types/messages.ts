@@ -68,6 +68,15 @@ export interface ToolExecutionEntry {
   readonly error?: string;
 }
 
+export interface AutomationTabEntry {
+  readonly tabId: number;
+  readonly title: string;
+  readonly url: string;
+  readonly windowId: number;
+  readonly active: boolean;
+  readonly isAutomating: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // Side panel types
 // ---------------------------------------------------------------------------
@@ -77,12 +86,16 @@ export type SidePanelRequest =
   | { readonly action: "sidepanel_get_state" }
   | { readonly action: "sidepanel_connect" }
   | { readonly action: "sidepanel_disconnect" }
-  | { readonly action: "sidepanel_stop_automation" };
+  | { readonly action: "sidepanel_stop_automation" }
+  | { readonly action: "sidepanel_focus_tab"; readonly tabId: number }
+  | { readonly action: "sidepanel_stop_tab_automation"; readonly tabId: number }
+  | { readonly action: "sidepanel_close_tab"; readonly tabId: number };
 
 /** Full state snapshot sent to the side panel */
 export interface SidePanelState {
   readonly connectionStatus: ConnectionStatus;
   readonly toolHistory: readonly ToolExecutionEntry[];
+  readonly automationTabs: readonly AutomationTabEntry[];
 }
 
 /** Broadcast from service worker to all extension pages when state changes */
@@ -94,4 +107,8 @@ export type SidePanelBroadcast =
   | {
       readonly type: "tool_execution_update";
       readonly entry: ToolExecutionEntry;
+    }
+  | {
+      readonly type: "automation_tabs_changed";
+      readonly tabs: readonly AutomationTabEntry[];
     };

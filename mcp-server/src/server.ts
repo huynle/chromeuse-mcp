@@ -15,7 +15,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { TOOL_NAMES } from "@chromeuse/shared";
 import { SocketClient } from "./socketClient.js";
-import type { BrowserTransport, ToolRequestResult } from "./transport.js";
+import type { BrowserTransport, ToolRequestMetadata, ToolRequestResult } from "./transport.js";
 import { WebSocketBridge } from "./webSocketBridge.js";
 
 const NO_EXTENSION_CONNECTED_MESSAGE =
@@ -59,14 +59,19 @@ export class WebSocketFirstTransport implements BrowserTransport {
   async sendToolRequest(
     tool: string,
     args: Record<string, unknown>,
-    timeoutMs?: number
+    timeoutMs?: number,
+    metadata?: ToolRequestMetadata
   ): Promise<ToolRequestResult> {
     if (this.webSocket.connected) {
-      return this.webSocket.sendToolRequest(tool, args, timeoutMs);
+      return metadata
+        ? this.webSocket.sendToolRequest(tool, args, timeoutMs, metadata)
+        : this.webSocket.sendToolRequest(tool, args, timeoutMs);
     }
 
     if (this.native.connected) {
-      return this.native.sendToolRequest(tool, args, timeoutMs);
+      return metadata
+        ? this.native.sendToolRequest(tool, args, timeoutMs, metadata)
+        : this.native.sendToolRequest(tool, args, timeoutMs);
     }
 
     throw new Error(this.unavailableMessage());
@@ -604,6 +609,7 @@ export async function createMcpServer(
   );
 
   const client = browserTransport ?? new WebSocketFirstTransport();
+  const clientId = `chromeuse-mcp-${process.pid}-${Math.random().toString(36).slice(2, 10)}`;
   if (!browserTransport) await client.connect();
 
   const closeServer = server.close.bind(server);
@@ -663,7 +669,9 @@ export async function createMcpServer(
     try {
       const result = await client.sendToolRequest(
         name,
-        (args ?? {}) as Record<string, unknown>
+        (args ?? {}) as Record<string, unknown>,
+        undefined,
+        { clientId }
       );
       return toMcpToolResult(result);
     } catch (err) {

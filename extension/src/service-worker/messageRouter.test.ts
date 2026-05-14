@@ -1,4 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
+
+const automationIndicator = vi.hoisted(() => ({
+  markAutomationTab: vi.fn(() => Promise.resolve()),
+  unmarkAutomationTab: vi.fn(() => Promise.resolve()),
+}));
+const sidePanelHandler = vi.hoisted(() => ({
+  finishAutomationTabWorking: vi.fn(),
+  recordAutomationTab: vi.fn(),
+  setAutomationTabWorking: vi.fn(),
+}));
+
+vi.mock("./automationIndicator.js", () => automationIndicator);
+vi.mock("./sidePanelHandler.js", () => sidePanelHandler);
+
 import { MessageRouter } from "./messageRouter.js";
 import type { ToolRequest } from "./messageRouter.js";
 import type { ToolHandler, ToolResult } from "../types/messages.js";
@@ -115,6 +129,33 @@ describe("MessageRouter", () => {
         type: "text",
         text: 'Tool "bad" failed: string error',
       });
+    });
+
+    it("shows automation controls only while a tab-targeted tool is running", async () => {
+      const router = new MessageRouter();
+      let release: (() => void) | undefined;
+      router.register("slow", {
+        async execute() {
+          await new Promise<void>((resolve) => {
+            release = resolve;
+          });
+          return { success: true, content: [{ type: "text", text: "ok" }] };
+        },
+      });
+
+      const result = router.route(makeRequest("slow", { tabId: 123 }));
+
+      await vi.waitFor(() => {
+        expect(automationIndicator.markAutomationTab).toHaveBeenCalledWith(123);
+      });
+      expect(sidePanelHandler.setAutomationTabWorking).toHaveBeenCalledWith(123, true);
+      expect(automationIndicator.unmarkAutomationTab).not.toHaveBeenCalled();
+
+      release?.();
+      await result;
+
+      expect(automationIndicator.unmarkAutomationTab).toHaveBeenCalledWith(123);
+      expect(sidePanelHandler.finishAutomationTabWorking).toHaveBeenCalledWith(123);
     });
 
     it("serializes concurrent tool requests", async () => {

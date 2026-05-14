@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const sendMessage = vi.fn();
 const executeScript = vi.fn();
@@ -22,10 +22,12 @@ const {
   clearAutomationIndicators,
   initAutomationIndicator,
   markAutomationTab,
+  unmarkAutomationTab,
 } = await import("./automationIndicator.js");
 
 describe("automationIndicator", () => {
   beforeEach(async () => {
+    vi.useFakeTimers();
     sendMessage.mockResolvedValue({ success: true });
     executeScript.mockResolvedValue([]);
     getTab.mockResolvedValue({ id: 123 });
@@ -34,6 +36,10 @@ describe("automationIndicator", () => {
     sendMessage.mockResolvedValue({ success: true });
     executeScript.mockResolvedValue([]);
     getTab.mockResolvedValue({ id: 123 });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("shows the automation indicator on a targeted tab", async () => {
@@ -83,6 +89,54 @@ describe("automationIndicator", () => {
     await clearAutomationIndicators();
 
     expect(sendMessage).toHaveBeenCalledWith(123, {
+      action: "hide_indicator",
+    });
+  });
+
+  it("hides the automation indicator when active work finishes", async () => {
+    await markAutomationTab(123);
+    sendMessage.mockClear();
+
+    await unmarkAutomationTab(123);
+
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(3000);
+
+    expect(sendMessage).toHaveBeenCalledWith(123, {
+      action: "hide_indicator",
+    });
+  });
+
+  it("keeps the indicator visible until all active work on the tab finishes", async () => {
+    await markAutomationTab(123);
+    await markAutomationTab(123);
+    sendMessage.mockClear();
+
+    await unmarkAutomationTab(123);
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    await unmarkAutomationTab(123);
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(sendMessage).toHaveBeenCalledWith(123, {
+      action: "hide_indicator",
+    });
+  });
+
+  it("keeps the indicator visible across a short automation series gap", async () => {
+    await markAutomationTab(123);
+    sendMessage.mockClear();
+
+    await unmarkAutomationTab(123);
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(2500);
+    await markAutomationTab(123);
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(sendMessage).not.toHaveBeenCalledWith(123, {
       action: "hide_indicator",
     });
   });

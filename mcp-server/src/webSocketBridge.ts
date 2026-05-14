@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { WebSocket, WebSocketServer } from "ws";
 import type { ToolRequest, ToolResponse } from "@chromeuse/shared";
-import type { BrowserTransport, ToolRequestResult } from "./transport.js";
+import type { BrowserTransport, ToolRequestMetadata, ToolRequestResult } from "./transport.js";
 import { DEFAULT_TIMEOUT_MS } from "./socketClient.js";
 
 interface PendingRequest {
@@ -85,7 +85,8 @@ export class WebSocketBridge implements BrowserTransport {
   async sendToolRequest(
     tool: string,
     args: Record<string, unknown>,
-    timeoutMs: number = DEFAULT_TIMEOUT_MS
+    timeoutMs: number = DEFAULT_TIMEOUT_MS,
+    metadata: ToolRequestMetadata = {}
   ): Promise<ToolRequestResult> {
     if (!this.connected || !this.extension) {
       throw new Error("No extension connected to WebSocket bridge");
@@ -95,7 +96,13 @@ export class WebSocketBridge implements BrowserTransport {
     const request: ToolRequest = {
       type: "tool_request",
       method: "execute_tool",
-      params: { request_id: requestId, tool, args },
+      params: {
+        request_id: requestId,
+        tool,
+        args,
+        ...(metadata.clientId ? { client_id: metadata.clientId } : {}),
+        ...(metadata.sessionScope ? { session_scope: metadata.sessionScope } : {}),
+      },
     };
 
     return new Promise<ToolRequestResult>((resolve, reject) => {

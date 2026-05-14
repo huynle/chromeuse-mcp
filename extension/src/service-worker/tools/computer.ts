@@ -48,6 +48,9 @@ const SCROLL_AMOUNT = 100;
 /** Delay between mousePressed and mouseReleased for clicks (ms) */
 const CLICK_DELAY_MS = 50;
 
+/** Keep CDP attached briefly so Chrome's debugger infobar does not resize the page between actions. */
+const COMPUTER_CDP_IDLE_DETACH_DELAY_MS = 3000;
+
 /** Maximum repeated clicks allowed in one request */
 const MAX_CLICK_COUNT = 100;
 
@@ -59,6 +62,27 @@ const DRAG_STEP_DELAY_MS = 16;
 
 /** Number of intermediate steps in a drag operation */
 const DRAG_STEPS = 10;
+
+const pendingDetachTimers = new Map<number, ReturnType<typeof setTimeout>>();
+
+function cancelPendingDetach(tabId: number): void {
+  const timer = pendingDetachTimers.get(tabId);
+  if (timer === undefined) return;
+
+  clearTimeout(timer);
+  pendingDetachTimers.delete(tabId);
+}
+
+function scheduleIdleDetach(tabId: number): void {
+  cancelPendingDetach(tabId);
+  pendingDetachTimers.set(
+    tabId,
+    setTimeout(() => {
+      pendingDetachTimers.delete(tabId);
+      void cdpManager.detach(tabId);
+    }, COMPUTER_CDP_IDLE_DETACH_DELAY_MS),
+  );
+}
 
 // --- Key Mapping ---
 
@@ -417,6 +441,8 @@ export class ComputerTool implements ToolHandler {
         return this.error("Missing required argument: tabId (number)");
       }
 
+      cancelPendingDetach(tabId);
+
       // Ensure CDP is attached
       if (!cdpManager.isAttached(tabId)) {
         await cdpManager.attach(tabId);
@@ -455,7 +481,7 @@ export class ComputerTool implements ToolHandler {
       );
     } finally {
       if (attachedForCall && typeof tabId === "number") {
-        await cdpManager.detach(tabId);
+        scheduleIdleDetach(tabId);
       }
     }
   }

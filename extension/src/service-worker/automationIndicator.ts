@@ -1,6 +1,8 @@
 const VISUAL_INDICATOR_SCRIPT = "dist/content-scripts/visualIndicator.js";
+const AUTOMATION_IDLE_HIDE_DELAY_MS = 3000;
 
-const automatedTabs = new Set<number>();
+const automatedTabs = new Map<number, number>();
+const hideTimers = new Map<number, ReturnType<typeof setTimeout>>();
 let initialized = false;
 
 type IndicatorAction = "show_indicator" | "hide_indicator";
@@ -11,6 +13,7 @@ export function initAutomationIndicator(): void {
 
   chrome.tabs.onRemoved.addListener((tabId: number) => {
     automatedTabs.delete(tabId);
+    clearHideTimer(tabId);
   });
 
   chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
@@ -20,14 +23,48 @@ export function initAutomationIndicator(): void {
 }
 
 export async function markAutomationTab(tabId: number): Promise<void> {
-  automatedTabs.add(tabId);
-  await showIndicator(tabId);
+  clearHideTimer(tabId);
+  const activeCount = automatedTabs.get(tabId) ?? 0;
+  automatedTabs.set(tabId, activeCount + 1);
+  if (activeCount === 0) await showIndicator(tabId);
+}
+
+export async function unmarkAutomationTab(tabId: number): Promise<void> {
+  const activeCount = automatedTabs.get(tabId) ?? 0;
+  if (activeCount === 0) return;
+  if (activeCount <= 1) {
+    automatedTabs.delete(tabId);
+    scheduleHideIndicator(tabId);
+    return;
+  }
+
+  automatedTabs.set(tabId, activeCount - 1);
 }
 
 export async function clearAutomationIndicators(): Promise<void> {
-  const tabs = Array.from(automatedTabs);
+  const tabs = Array.from(automatedTabs.keys());
   automatedTabs.clear();
+  for (const tabId of tabs) clearHideTimer(tabId);
   await Promise.all(tabs.map((tabId) => hideIndicator(tabId)));
+}
+
+function clearHideTimer(tabId: number): void {
+  const timer = hideTimers.get(tabId);
+  if (timer === undefined) return;
+
+  clearTimeout(timer);
+  hideTimers.delete(tabId);
+}
+
+function scheduleHideIndicator(tabId: number): void {
+  clearHideTimer(tabId);
+  hideTimers.set(
+    tabId,
+    setTimeout(() => {
+      hideTimers.delete(tabId);
+      void hideIndicator(tabId);
+    }, AUTOMATION_IDLE_HIDE_DELAY_MS),
+  );
 }
 
 async function showIndicator(tabId: number): Promise<void> {

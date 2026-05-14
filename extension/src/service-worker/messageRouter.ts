@@ -10,7 +10,12 @@ import type {
   ToolResult,
   ToolContext,
 } from "../types/messages.js";
-import { markAutomationTab } from "./automationIndicator.js";
+import { markAutomationTab, unmarkAutomationTab } from "./automationIndicator.js";
+import {
+  finishAutomationTabWorking,
+  recordAutomationTab,
+  setAutomationTabWorking,
+} from "./sidePanelHandler.js";
 
 export interface ToolRequest {
   method: string;
@@ -80,9 +85,17 @@ export class MessageRouter {
       sessionScope: session_scope,
     };
 
+    const activeAutomationTabId = typeof args.tabId === "number" ? args.tabId : undefined;
+
     try {
-      if (typeof args.tabId === "number") {
-        await markAutomationTab(args.tabId);
+      if (activeAutomationTabId !== undefined) {
+        try {
+          recordAutomationTab(await chrome.tabs.get(activeAutomationTabId));
+        } catch {
+          // The underlying tool will return its own tab-not-found error if needed.
+        }
+        setAutomationTabWorking(activeAutomationTabId, true);
+        await markAutomationTab(activeAutomationTabId);
       }
       return await handler.execute(args, context);
     } catch (error) {
@@ -95,6 +108,11 @@ export class MessageRouter {
           },
         ],
       };
+    } finally {
+      if (activeAutomationTabId !== undefined) {
+        finishAutomationTabWorking(activeAutomationTabId);
+        await unmarkAutomationTab(activeAutomationTabId);
+      }
     }
   }
 }

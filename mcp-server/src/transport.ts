@@ -6,6 +6,11 @@ export interface ToolRequestResult {
   readonly isError?: boolean;
 }
 
+export interface ToolRequestMetadata {
+  readonly clientId?: string;
+  readonly sessionScope?: string;
+}
+
 export interface BrowserTransport {
   readonly connected: boolean;
 
@@ -14,7 +19,8 @@ export interface BrowserTransport {
   sendToolRequest(
     tool: string,
     args: Record<string, unknown>,
-    timeoutMs?: number
+    timeoutMs?: number,
+    metadata?: ToolRequestMetadata
   ): Promise<ToolRequestResult>;
 
   disconnect(): void;

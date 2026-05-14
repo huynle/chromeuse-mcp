@@ -13,7 +13,12 @@ import type {
   ToolResult,
   ToolContext,
 } from "../../types/messages.js";
-import { markAutomationTab } from "../automationIndicator.js";
+import { markAutomationTab, unmarkAutomationTab } from "../automationIndicator.js";
+import {
+  finishAutomationTabWorking,
+  recordAutomationTab,
+  setAutomationTabWorking,
+} from "../sidePanelHandler.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -163,7 +168,8 @@ export class NavigateTool implements ToolHandler {
 
       // --- Verify tab exists ---
       try {
-        await chrome.tabs.get(tabId);
+        const tab = await chrome.tabs.get(tabId);
+        recordAutomationTab(tab);
       } catch {
         return {
           success: false,
@@ -172,42 +178,48 @@ export class NavigateTool implements ToolHandler {
       }
 
       await markAutomationTab(tabId);
+      setAutomationTabWorking(tabId, true);
 
-      // --- Execute the navigation action ---
-      switch (action) {
-        case "goto": {
-          await chrome.tabs.update(tabId, { url: url! });
-          break;
+      try {
+        // --- Execute the navigation action ---
+        switch (action) {
+          case "goto": {
+            await chrome.tabs.update(tabId, { url: url! });
+            break;
+          }
+          case "back": {
+            await chrome.tabs.goBack(tabId);
+            break;
+          }
+          case "forward": {
+            await chrome.tabs.goForward(tabId);
+            break;
+          }
+          case "reload": {
+            await chrome.tabs.reload(tabId);
+            break;
+          }
         }
-        case "back": {
-          await chrome.tabs.goBack(tabId);
-          break;
-        }
-        case "forward": {
-          await chrome.tabs.goForward(tabId);
-          break;
-        }
-        case "reload": {
-          await chrome.tabs.reload(tabId);
-          break;
-        }
+
+        // --- Wait for page load ---
+        const tab = await waitForTabLoad(tabId, PAGE_LOAD_TIMEOUT_MS);
+
+        const result = {
+          tabId,
+          action,
+          url: tab.url ?? tab.pendingUrl ?? url ?? null,
+          title: tab.title ?? null,
+          status: tab.status ?? "unknown",
+        };
+
+        return {
+          success: true,
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      } finally {
+        finishAutomationTabWorking(tabId);
+        await unmarkAutomationTab(tabId);
       }
-
-      // --- Wait for page load ---
-      const tab = await waitForTabLoad(tabId, PAGE_LOAD_TIMEOUT_MS);
-
-      const result = {
-        tabId,
-        action,
-        url: tab.url ?? tab.pendingUrl ?? url ?? null,
-        title: tab.title ?? null,
-        status: tab.status ?? "unknown",
-      };
-
-      return {
-        success: true,
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-      };
     } catch (error) {
       return {
         success: false,

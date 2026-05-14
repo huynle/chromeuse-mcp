@@ -15,6 +15,8 @@ interface ToolRequestBody {
   readonly tool: string;
   readonly args: Record<string, unknown>;
   readonly timeoutMs?: number;
+  readonly clientId?: string;
+  readonly sessionScope?: string;
 }
 
 export function createGatewayServer(options: GatewayServerOptions): Server {
@@ -82,11 +84,21 @@ async function handleToolRequest(
   }
 
   try {
-    const result = await transport.sendToolRequest(
-      toolRequest.tool,
-      toolRequest.args,
-      toolRequest.timeoutMs
-    );
+    const metadata = toolRequest.clientId || toolRequest.sessionScope
+      ? { clientId: toolRequest.clientId, sessionScope: toolRequest.sessionScope }
+      : undefined;
+    const result = metadata
+      ? await transport.sendToolRequest(
+          toolRequest.tool,
+          toolRequest.args,
+          toolRequest.timeoutMs,
+          metadata
+        )
+      : await transport.sendToolRequest(
+          toolRequest.tool,
+          toolRequest.args,
+          toolRequest.timeoutMs
+        );
     writeJson(response, 200, result);
     logGateway(
       logger,
@@ -113,12 +125,16 @@ function normalizeToolRequestBody(body: unknown): ToolRequestBody | null {
   const tool = body.tool ?? body.name;
   const args = body.args ?? body.arguments ?? {};
   const timeoutMs = body.timeoutMs;
+  const clientId = body.client_id ?? body.clientId;
+  const sessionScope = body.session_scope ?? body.sessionScope;
 
   if (typeof tool !== "string" || tool.length === 0) return null;
   if (!isRecord(args)) return null;
   if (timeoutMs !== undefined && typeof timeoutMs !== "number") return null;
+  if (clientId !== undefined && typeof clientId !== "string") return null;
+  if (sessionScope !== undefined && typeof sessionScope !== "string") return null;
 
-  return { tool, args, timeoutMs };
+  return { tool, args, timeoutMs, clientId, sessionScope };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

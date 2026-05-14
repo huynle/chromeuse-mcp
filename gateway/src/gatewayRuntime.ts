@@ -4,6 +4,7 @@ import {
   createMcpServer,
   WebSocketBridge,
   type BrowserTransport,
+  type ToolRequestMetadata,
   type ToolRequestResult,
 } from "@chromeuse/mcp-server";
 import { createGatewayServer } from "./gatewayServer.js";
@@ -45,7 +46,7 @@ interface RuntimeDependencies {
   }) => HttpServer;
   readonly createHttpGatewayTransport?: (
     baseUrl: string,
-    options?: { logger?: (message: string) => void }
+    options?: { clientId?: string; logger?: (message: string) => void }
   ) => BrowserTransport;
 }
 
@@ -105,7 +106,10 @@ export async function startGateway(
       await listen(httpServer, config.gatewayPort, config.gatewayHost);
     } catch (error) {
       if (isAddressInUse(error)) {
-        const proxyTransport = createHttpGatewayTransport(baseUrl, { logger });
+        const proxyTransport = createHttpGatewayTransport(baseUrl, {
+          clientId: config.clientId,
+          logger,
+        });
         try {
           await proxyTransport.connect();
         } catch (proxyError) {
@@ -219,9 +223,12 @@ class DeferredBrowserTransport implements BrowserTransport {
   async sendToolRequest(
     tool: string,
     args: Record<string, unknown>,
-    timeoutMs?: number
+    timeoutMs?: number,
+    metadata?: ToolRequestMetadata
   ): Promise<ToolRequestResult> {
-    return this.requireDelegate().sendToolRequest(tool, args, timeoutMs);
+    return metadata
+      ? this.requireDelegate().sendToolRequest(tool, args, timeoutMs, metadata)
+      : this.requireDelegate().sendToolRequest(tool, args, timeoutMs);
   }
 
   disconnect(): void {
