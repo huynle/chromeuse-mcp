@@ -70,6 +70,22 @@ function sendRuntimeMessage(message: { action?: string; tabId?: number }) {
   return { handled, sendResponse };
 }
 
+function tabFixture(overrides: Partial<chrome.tabs.Tab> = {}): chrome.tabs.Tab {
+  return {
+    active: false,
+    autoDiscardable: true,
+    discarded: false,
+    groupId: -1,
+    highlighted: false,
+    incognito: false,
+    index: 0,
+    pinned: false,
+    selected: false,
+    windowId: 456,
+    ...overrides,
+  };
+}
+
 describe("sidePanelHandler", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -150,13 +166,11 @@ describe("sidePanelHandler", () => {
   });
 
   it("includes automation-created tabs in side panel state", () => {
-    recordAutomationTab({
+    recordAutomationTab(tabFixture({
       id: 123,
       title: "Example Domain",
       url: "https://example.com/",
-      windowId: 456,
-      active: false,
-    });
+    }));
     initSidePanelHandler();
 
     const state = sendRuntimeMessage({ action: "sidepanel_get_state" });
@@ -179,7 +193,7 @@ describe("sidePanelHandler", () => {
 
   it("removes tracked automation tabs when Chrome reports the tab closed", () => {
     initSidePanelHandler();
-    recordAutomationTab({ id: 123, title: "Example", url: "https://example.com/", windowId: 456, active: false });
+    recordAutomationTab(tabFixture({ id: 123, title: "Example", url: "https://example.com/" }));
 
     const listener = chromeStub.tabs.onRemoved.addListener.mock.calls[0][0] as (tabId: number) => void;
     listener(123);
@@ -191,7 +205,7 @@ describe("sidePanelHandler", () => {
   });
 
   it("focuses the requested automation tab from the side panel", async () => {
-    recordAutomationTab({ id: 123, title: "Example", url: "https://example.com/", windowId: 456, active: false });
+    recordAutomationTab(tabFixture({ id: 123, title: "Example", url: "https://example.com/" }));
     initSidePanelHandler();
 
     const focus = sendRuntimeMessage({ action: "sidepanel_focus_tab", tabId: 123 });
@@ -205,7 +219,7 @@ describe("sidePanelHandler", () => {
   });
 
   it("marks tracked tabs that are actively being automated", () => {
-    recordAutomationTab({ id: 123, title: "Example", url: "https://example.com/", windowId: 456, active: false });
+    recordAutomationTab(tabFixture({ id: 123, title: "Example", url: "https://example.com/" }));
 
     setAutomationTabWorking(123, true);
     initSidePanelHandler();
@@ -220,7 +234,7 @@ describe("sidePanelHandler", () => {
 
   it("stops automation for a requested tracked tab", () => {
     webSocketConnection.status = "connected";
-    recordAutomationTab({ id: 123, title: "Example", url: "https://example.com/", windowId: 456, active: false });
+    recordAutomationTab(tabFixture({ id: 123, title: "Example", url: "https://example.com/" }));
     setAutomationTabWorking(123, true);
     initSidePanelHandler();
 
@@ -237,7 +251,7 @@ describe("sidePanelHandler", () => {
   });
 
   it("closes a requested tracked tab", async () => {
-    recordAutomationTab({ id: 123, title: "Example", url: "https://example.com/", windowId: 456, active: false });
+    recordAutomationTab(tabFixture({ id: 123, title: "Example", url: "https://example.com/" }));
     initSidePanelHandler();
 
     const close = sendRuntimeMessage({ action: "sidepanel_close_tab", tabId: 123 });
