@@ -224,6 +224,41 @@ Inputs:
 
 Use `start` before the workflow, `screenshot` whenever a frame should be captured, and `stop` to finish and return the GIF.
 
+
+
+### `save_resource`
+
+Downloads and saves resources from authenticated pages to the local filesystem.
+
+Fetches a resource URL (using the page's authentication cookies) and saves it to the specified location. Supports all file types: images, PDFs, documents, archives, etc.
+
+Inputs:
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `tabId` | number | yes | Target tab ID for authentication context. |
+| `url` | string | yes | URL of the resource to download. |
+| `outputPath` | string | no | Absolute path where to save the file. If omitted, saves to `~/Downloads`. Can be a directory (ending with `/`) or full file path. |
+| `filename` | string | no | Filename to use. If omitted, extracts from URL or uses `download` as fallback. |
+
+Returns: Success status, saved file path, file size, and content type.
+
+Use cases:
+- Download PDFs, images, documents, ZIPs from internal network pages
+- Save embedded resources that require authentication
+- Archive page resources programmatically
+
+Example:
+```javascript
+// Download a PDF from an authenticated internal page
+save_resource({
+  tabId: 123,
+  url: "https://internal.company.com/docs/report.pdf",
+  outputPath: "/Users/me/Documents/",
+  filename: "quarterly-report.pdf"
+})
+```
+
 ## Workspace and Document Tools
 
 The unified workspace/document foundation extends ChromeUse without bundling the Chrome Reader extension. Workspace state belongs to the ChromeUse side panel, and MCP tools communicate with that state through the existing extension transport.

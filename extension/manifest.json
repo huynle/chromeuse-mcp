@@ -13,7 +13,8 @@
     "nativeMessaging",
     "offscreen",
     "alarms",
-    "sidePanel"
+    "sidePanel",
+    "downloads"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -32,20 +33,32 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["dist/content-scripts/visualIndicator.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "dist/content-scripts/visualIndicator.js"
+      ],
       "run_at": "document_start",
       "all_frames": false
     },
     {
-      "matches": ["<all_urls>"],
-      "js": ["dist/content-scripts/accessibilityTree.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "dist/content-scripts/accessibilityTree.js"
+      ],
       "run_at": "document_idle",
       "all_frames": true
     },
     {
-      "matches": ["<all_urls>"],
-      "js": ["dist/content-scripts/markdownDocumentRenderer.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "dist/content-scripts/markdownDocumentRenderer.js"
+      ],
       "run_at": "document_idle",
       "all_frames": false
     }
@@ -61,7 +74,9 @@
         "assets/devicons/*.svg",
         "dist/content-scripts/mermaidRenderer.js"
       ],
-      "matches": ["<all_urls>"]
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
   "icons": {

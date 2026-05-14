@@ -585,6 +585,35 @@ const TOOL_SCHEMAS: Tool[] = [
       required: ["path"],
     },
   },
+  {
+    name: TOOL_NAMES.SAVE_RESOURCE,
+    description:
+      "Save a resource from a URL to the local filesystem. Fetches the resource using the page's authentication context (cookies) and saves it to the specified location. Supports all file types: images, PDFs, documents, archives, etc. Defaults to ~/Downloads folder if no path specified.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tabId: {
+          type: "number",
+          description: "Target tab ID for authentication context",
+        },
+        url: {
+          type: "string",
+          description: "URL of the resource to download",
+        },
+        outputPath: {
+          type: "string",
+          description:
+            "Optional: absolute path where to save the file. If omitted, saves to ~/Downloads. Can be a directory (ending with /) or full file path.",
+        },
+        filename: {
+          type: "string",
+          description:
+            "Optional: filename to use. If omitted, extracts from URL or uses 'download' as fallback.",
+        },
+      },
+      required: ["tabId", "url"],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------

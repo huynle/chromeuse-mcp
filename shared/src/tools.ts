@@ -45,6 +45,8 @@ export const TOOL_NAMES = {
   WORKSPACE_READ_FILE: "workspace_read_file",
   /** Check health and connectivity of ChromeUse MCP server */
   HEALTH_CHECK: "health_check",
+  /** Save a resource from a URL to local filesystem */
+  SAVE_RESOURCE: "save_resource",
 } as const;
 
 /** Union type of all valid tool name strings */
