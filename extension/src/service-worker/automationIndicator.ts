@@ -1,5 +1,5 @@
 const VISUAL_INDICATOR_SCRIPT = "dist/content-scripts/visualIndicator.js";
-const AUTOMATION_IDLE_HIDE_DELAY_MS = 3000;
+const AUTOMATION_IDLE_HIDE_DELAY_MS = 5000;
 
 const automatedTabs = new Map<number, number>();
 const hideTimers = new Map<number, ReturnType<typeof setTimeout>>();

@@ -101,7 +101,7 @@ describe("automationIndicator", () => {
 
     expect(sendMessage).not.toHaveBeenCalled();
 
-    await vi.advanceTimersByTimeAsync(3000);
+    await vi.advanceTimersByTimeAsync(5000);
 
     expect(sendMessage).toHaveBeenCalledWith(123, {
       action: "hide_indicator",
@@ -119,7 +119,7 @@ describe("automationIndicator", () => {
     await unmarkAutomationTab(123);
     expect(sendMessage).not.toHaveBeenCalled();
 
-    await vi.advanceTimersByTimeAsync(3000);
+    await vi.advanceTimersByTimeAsync(5000);
     expect(sendMessage).toHaveBeenCalledWith(123, {
       action: "hide_indicator",
     });
