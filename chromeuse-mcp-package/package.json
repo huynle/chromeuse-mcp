@@ -1,0 +1,41 @@
+{
+  "name": "chromeuse-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP browser automation tools for controlling a real Chromium session",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/huynle/chromeuse-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/huynle/chromeuse-mcp/issues"
+  },
+  "homepage": "https://github.com/huynle/chromeuse-mcp#readme",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "chrome",
+    "chromium",
+    "browser-automation",
+    "ai-tools"
+  ],
+  "workspaces": [
+    "shared",
+    "extension",
+    "native-host",
+    "mcp-server",
+    "gateway"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "build:shared": "npm run build -w shared",
+    "typecheck": "npm run build -w shared && npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:shared": "npm run test -w shared",
+    "clean": "npm run clean --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

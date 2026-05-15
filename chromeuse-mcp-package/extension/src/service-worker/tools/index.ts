@@ -23,13 +23,11 @@ import { NavigateTool } from "./navigate.js";
 import { NetworkTool } from "./network.js";
 import { ReadPageTool } from "./readPage.js";
 import { ResizeTool } from "./resize.js";
-import { SaveResourceTool } from "./saveResource.js";
 import { TabsCloseTool } from "./tabsClose.js";
 import { TabsContextTool } from "./tabsContext.js";
 import { TabsCreateTool } from "./tabsCreate.js";
 import { WorkspaceListTool } from "./workspaceList.js";
 import { WorkspaceReadTool } from "./workspaceRead.js";
-import { WorkspaceWriteTool } from "./workspaceWrite.js";
 
 /**
  * Register all tool handlers with the message router.
@@ -52,13 +50,11 @@ export function registerTools(router: MessageRouter): void {
   router.register(TOOL_NAMES.READ_NETWORK, new NetworkTool());
   router.register(TOOL_NAMES.READ_PAGE, new ReadPageTool());
   router.register(TOOL_NAMES.RESIZE_WINDOW, new ResizeTool());
-  router.register(TOOL_NAMES.SAVE_RESOURCE, new SaveResourceTool());
   router.register(TOOL_NAMES.TABS_CLOSE, new TabsCloseTool());
   router.register(TOOL_NAMES.TABS_CONTEXT, new TabsContextTool());
   router.register(TOOL_NAMES.TABS_CREATE, new TabsCreateTool());
   router.register(TOOL_NAMES.WORKSPACE_LIST_FILES, new WorkspaceListTool());
   router.register(TOOL_NAMES.WORKSPACE_READ_FILE, new WorkspaceReadTool());
-  router.register(TOOL_NAMES.WORKSPACE_WRITE_FILE, new WorkspaceWriteTool());
 
   console.log(
     "[Tools] Registered:",
