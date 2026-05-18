@@ -213,6 +213,7 @@ describe("getToolSchemas", () => {
         x: expect.any(Object),
         y: expect.any(Object),
         ref: expect.any(Object),
+        overlay: expect.any(Object),
         direction: expect.any(Object),
         amount: expect.any(Object),
         startX: expect.any(Object),
@@ -226,6 +227,17 @@ describe("getToolSchemas", () => {
     expect(schema.inputSchema.properties).not.toHaveProperty("scroll_amount");
     expect(schema.inputSchema.properties).not.toHaveProperty("start_coordinate");
     expect(schema.inputSchema.properties).not.toHaveProperty("end_coordinate");
+  });
+
+  it("advertises temporary grid screenshot support on the computer tool", () => {
+    const schema = schemaFor(TOOL_NAMES.COMPUTER);
+
+    expect(schema.inputSchema.properties).toMatchObject({
+      overlay: {
+        type: "string",
+        enum: ["none", "temporary-grid"],
+      },
+    });
   });
 
   it("matches file_upload handler argument names", () => {

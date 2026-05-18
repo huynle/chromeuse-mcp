@@ -170,6 +170,12 @@ const TOOL_SCHEMAS: Tool[] = [
           type: "string",
           description: "Element reference from read_page/find for ref-based clicks",
         },
+        overlay: {
+          type: "string",
+          enum: ["none", "temporary-grid"],
+          description:
+            'Optional overlay for screenshot action. "temporary-grid" injects a coordinate grid only during capture, then removes it before returning.',
+        },
         text: {
           type: "string",
           description: 'Text to type (for "type" action)',

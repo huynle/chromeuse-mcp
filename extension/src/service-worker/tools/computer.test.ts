@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const sendCommand = vi.fn();
+const captureScreenshot = vi.fn();
 const attach = vi.fn();
 const detach = vi.fn();
 const isAttached = vi.fn(() => true);
+const tabSendMessage = vi.fn();
 
 vi.mock("../cdp.js", () => ({
   cdpManager: {
@@ -11,6 +13,7 @@ vi.mock("../cdp.js", () => ({
     detach,
     isAttached,
     sendCommand,
+    captureScreenshot,
   },
 }));
 
@@ -19,17 +22,31 @@ const { ComputerTool } = await import("./computer.js");
 describe("ComputerTool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal("chrome", {
+      tabs: {
+        sendMessage: tabSendMessage,
+      },
+    });
+    tabSendMessage.mockResolvedValue({ wasVisible: true });
     isAttached.mockReturnValue(true);
     sendCommand.mockImplementation(async (_tabId, method) => {
       if (method === "Page.getLayoutMetrics") {
         return { cssLayoutViewport: { clientWidth: 1000, clientHeight: 800 } };
       }
+      if (method === "Runtime.evaluate") {
+        return { result: { type: "undefined" } };
+      }
       return {};
+    });
+    captureScreenshot.mockResolvedValue({
+      data: "base64-jpeg",
+      dimensions: { width: 1000, height: 800 },
     });
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("performs repeated clicks in a single tool request", async () => {
@@ -96,6 +113,144 @@ describe("ComputerTool", () => {
 
     expect(attach).not.toHaveBeenCalled();
     expect(detach).not.toHaveBeenCalled();
+  });
+
+  it("temporarily hides the visual indicator while dispatching coordinate clicks", async () => {
+    const tool = new ComputerTool();
+
+    const result = await tool.execute(
+      { action: "click", tabId: 1, x: 100, y: 200 },
+      {},
+    );
+
+    expect(result.success).toBe(true);
+
+    const inputIndex = sendCommand.mock.calls.findIndex(
+      ([, method]) => method === "Input.dispatchMouseEvent",
+    );
+    const postIndex = tabSendMessage.mock.calls.findIndex(
+      ([, message]) => message.action === "post_screenshot",
+    );
+    const firstInputOrder = sendCommand.mock.invocationCallOrder[inputIndex];
+    const postOrder = tabSendMessage.mock.invocationCallOrder[postIndex];
+
+    expect(tabSendMessage.mock.calls[0]).toEqual([
+      1,
+      { action: "pre_screenshot" },
+    ]);
+    expect(inputIndex).toBeGreaterThan(-1);
+    expect(postIndex).toBeGreaterThan(-1);
+    expect(postOrder).toBeGreaterThan(firstInputOrder);
+    expect(tabSendMessage.mock.calls[postIndex]).toEqual([
+      1,
+      { action: "post_screenshot", wasVisible: true },
+    ]);
+  });
+
+  it("captures a screenshot with a temporary grid overlay and removes it afterward", async () => {
+    const tool = new ComputerTool();
+
+    const result = await tool.execute(
+      { action: "screenshot", tabId: 1, overlay: "temporary-grid" },
+      {},
+    );
+
+    expect(result.success).toBe(true);
+    expect(captureScreenshot).toHaveBeenCalledWith(1, {
+      format: "jpeg",
+      quality: 80,
+      viewport: { width: 1000, height: 800 },
+    });
+
+    const runtimeExpressions = sendCommand.mock.calls
+      .filter(([, method]) => method === "Runtime.evaluate")
+      .map(([, , params]) => params.expression as string);
+
+    expect(runtimeExpressions[0]).toContain("chromeuse-grid-overlay");
+    expect(runtimeExpressions[0]).toContain("backgroundSize");
+    expect(runtimeExpressions[0]).toContain("screenshotWidth");
+    expect(runtimeExpressions.at(-1)).toContain("chromeuse-grid-overlay");
+    expect(runtimeExpressions.at(-1)).toContain("remove");
+  });
+
+  it("returns viewport and scale metadata with screenshots", async () => {
+    captureScreenshot.mockResolvedValueOnce({
+      data: "base64-jpeg",
+      dimensions: { width: 500, height: 400 },
+    });
+    const tool = new ComputerTool();
+
+    const result = await tool.execute({ action: "screenshot", tabId: 1 }, {});
+
+    const metadataText = result.content.find((block) => block.type === "text")?.text;
+    expect(JSON.parse(metadataText ?? "{}")).toEqual({
+      screenshot: { width: 500, height: 400 },
+      viewport: { width: 1000, height: 800 },
+      scale: {
+        screenshotToViewportX: 2,
+        screenshotToViewportY: 2,
+        viewportToScreenshotX: 0.5,
+        viewportToScreenshotY: 0.5,
+      },
+      coordinateSpace: "screenshot",
+    });
+  });
+
+  it("draws temporary grid labels in screenshot coordinates", async () => {
+    sendCommand.mockImplementation(async (_tabId, method) => {
+      if (method === "Page.getLayoutMetrics") {
+        return { cssLayoutViewport: { clientWidth: 2000, clientHeight: 1000 } };
+      }
+      if (method === "Runtime.evaluate") {
+        return { result: { type: "undefined" } };
+      }
+      return {};
+    });
+    captureScreenshot.mockResolvedValueOnce({
+      data: "base64-jpeg",
+      dimensions: { width: 1000, height: 500 },
+    });
+    const tool = new ComputerTool();
+
+    await tool.execute(
+      { action: "screenshot", tabId: 1, overlay: "temporary-grid" },
+      {},
+    );
+
+    const gridExpression = sendCommand.mock.calls.find(
+      ([, method, params]) =>
+        method === "Runtime.evaluate" &&
+        typeof params.expression === "string" &&
+        params.expression.includes("backgroundSize"),
+    )?.[2].expression as string;
+
+    expect(gridExpression).toContain("const screenshotWidth = 1400");
+    expect(gridExpression).toContain("const screenshotHeight = 700");
+    expect(gridExpression).toContain("label.textContent = \"x\" + sx");
+    expect(gridExpression).toContain("left: (sx * scaleX + 4) + \"px\"");
+    expect(gridExpression).toContain("label.textContent = \"y\" + sy");
+    expect(gridExpression).toContain("top: (sy * scaleY + 4) + \"px\"");
+  });
+
+  it("removes the temporary grid even when screenshot capture fails", async () => {
+    captureScreenshot.mockRejectedValueOnce(new Error("capture failed"));
+    const tool = new ComputerTool();
+
+    const result = await tool.execute(
+      { action: "screenshot", tabId: 1, overlay: "temporary-grid" },
+      {},
+    );
+
+    expect(result.success).toBe(false);
+    const errorText = result.content.find((block) => block.type === "text")?.text;
+    expect(errorText).toContain("capture failed");
+
+    const runtimeExpressions = sendCommand.mock.calls
+      .filter(([, method]) => method === "Runtime.evaluate")
+      .map(([, , params]) => params.expression as string);
+
+    expect(runtimeExpressions.at(-1)).toContain("chromeuse-grid-overlay");
+    expect(runtimeExpressions.at(-1)).toContain("remove");
   });
 
   it("moves through multiple points in one tool request", async () => {

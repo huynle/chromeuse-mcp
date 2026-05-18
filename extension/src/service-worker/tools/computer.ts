@@ -21,6 +21,7 @@
 import type { ToolHandler, ToolResult, ToolContext } from "../../types/messages.js";
 import { cdpManager } from "../cdp.js";
 import {
+  calculateScreenshotDimensions,
   screenshotToViewport,
   type ViewportSize,
   type ScreenshotDimensions,
@@ -41,6 +42,7 @@ type Action =
   | "move_path";
 
 type ScrollDirection = "up" | "down" | "left" | "right";
+type ScreenshotOverlay = "none" | "temporary-grid";
 
 /** Pixels to scroll per "click" of the wheel */
 const SCROLL_AMOUNT = 100;
@@ -65,6 +67,8 @@ const DRAG_STEPS = 10;
 
 const pendingDetachTimers = new Map<number, ReturnType<typeof setTimeout>>();
 
+const TEMPORARY_GRID_OVERLAY_ID = "chromeuse-grid-overlay";
+
 function cancelPendingDetach(tabId: number): void {
   const timer = pendingDetachTimers.get(tabId);
   if (timer === undefined) return;
@@ -82,6 +86,74 @@ function scheduleIdleDetach(tabId: number): void {
       void cdpManager.detach(tabId);
     }, COMPUTER_CDP_IDLE_DETACH_DELAY_MS),
   );
+}
+
+function temporaryGridExpression(
+  viewport: ViewportSize,
+  screenshot: ScreenshotDimensions,
+): string {
+  const scaleX = viewport.width / screenshot.width;
+  const scaleY = viewport.height / screenshot.height;
+  const minorGridX = 50 * scaleX;
+  const minorGridY = 50 * scaleY;
+  const majorGridX = 250 * scaleX;
+  const majorGridY = 250 * scaleY;
+
+  return `(() => {
+    const screenshotWidth = ${screenshot.width};
+    const screenshotHeight = ${screenshot.height};
+    const scaleX = ${scaleX};
+    const scaleY = ${scaleY};
+    document.getElementById(${JSON.stringify(TEMPORARY_GRID_OVERLAY_ID)})?.remove();
+    const overlay = document.createElement("div");
+    overlay.id = ${JSON.stringify(TEMPORARY_GRID_OVERLAY_ID)};
+    Object.assign(overlay.style, {
+      position: "fixed",
+      inset: "0",
+      zIndex: "2147483646",
+      pointerEvents: "none",
+      backgroundImage: "linear-gradient(to right, rgba(255,255,255,.18) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,.18) 1px, transparent 1px), linear-gradient(to right, rgba(255,0,0,.55) 2px, transparent 2px), linear-gradient(to bottom, rgba(255,0,0,.55) 2px, transparent 2px)",
+      backgroundSize: "${minorGridX}px ${minorGridY}px, ${minorGridX}px ${minorGridY}px, ${majorGridX}px ${majorGridY}px, ${majorGridX}px ${majorGridY}px"
+    });
+    for (let sx = 0; sx < screenshotWidth; sx += 250) {
+      const label = document.createElement("div");
+      label.textContent = "x" + sx;
+      Object.assign(label.style, {
+        position: "fixed",
+        left: (sx * scaleX + 4) + "px",
+        top: "4px",
+        color: "#fff",
+        background: "rgba(220,38,38,.8)",
+        font: "12px monospace",
+        padding: "2px 4px",
+        borderRadius: "4px"
+      });
+      overlay.appendChild(label);
+    }
+    for (let sy = 0; sy < screenshotHeight; sy += 250) {
+      const label = document.createElement("div");
+      label.textContent = "y" + sy;
+      Object.assign(label.style, {
+        position: "fixed",
+        left: "4px",
+        top: (sy * scaleY + 4) + "px",
+        color: "#fff",
+        background: "rgba(220,38,38,.8)",
+        font: "12px monospace",
+        padding: "2px 4px",
+        borderRadius: "4px"
+      });
+      overlay.appendChild(label);
+    }
+    document.documentElement.appendChild(overlay);
+    return new Promise((resolve) => requestAnimationFrame(() => resolve(true)));
+  })()`;
+}
+
+function removeTemporaryGridExpression(): string {
+  return `(() => {
+    document.getElementById(${JSON.stringify(TEMPORARY_GRID_OVERLAY_ID)})?.remove();
+  })()`;
 }
 
 // --- Key Mapping ---
@@ -451,7 +523,7 @@ export class ComputerTool implements ToolHandler {
 
       switch (action) {
         case "screenshot":
-          return await this.screenshot(tabId);
+          return await this.screenshotWithArgs(tabId, args);
         case "click":
           return await this.click(tabId, args, "left", 1);
         case "double_click":
@@ -489,6 +561,17 @@ export class ComputerTool implements ToolHandler {
   // --- Actions ---
 
   private async screenshot(tabId: number): Promise<ToolResult> {
+    return this.screenshotWithArgs(tabId, {});
+  }
+
+  private async screenshotWithArgs(
+    tabId: number,
+    args: Record<string, unknown>,
+  ): Promise<ToolResult> {
+    const overlay = this.extractScreenshotOverlay(args);
+    const viewport = await getViewportSize(tabId);
+    const expectedScreenshotDims = calculateScreenshotDimensions(viewport);
+
     // Hide visual indicators during capture
     let wasVisible = false;
     try {
@@ -501,9 +584,18 @@ export class ComputerTool implements ToolHandler {
     }
 
     try {
+      if (overlay === "temporary-grid") {
+        await this.evaluate(
+          tabId,
+          temporaryGridExpression(viewport, expectedScreenshotDims),
+          true,
+        );
+      }
+
       const { data, dimensions } = await cdpManager.captureScreenshot(tabId, {
         format: "jpeg",
         quality: 80,
+        viewport,
       });
 
       // Store dimensions for coordinate mapping in subsequent actions
@@ -522,16 +614,15 @@ export class ComputerTool implements ToolHandler {
           },
           {
             type: "text",
-            text: JSON.stringify({
-              screenshot: {
-                width: dimensions.width,
-                height: dimensions.height,
-              },
-            }),
+            text: JSON.stringify(this.createScreenshotMetadata(viewport, dimensions)),
           },
         ],
       };
     } finally {
+      if (overlay === "temporary-grid") {
+        await this.evaluate(tabId, removeTemporaryGridExpression(), true);
+      }
+
       // Restore visual indicators if they were visible
       if (wasVisible) {
         try {
@@ -552,59 +643,61 @@ export class ComputerTool implements ToolHandler {
     button: "left" | "right",
     clickCount: number,
   ): Promise<ToolResult> {
-    let coords = this.extractCoords(args);
-    const repeatCount = this.extractClickCount(args);
+    return this.withVisualIndicatorHidden(tabId, async () => {
+      let coords = this.extractCoords(args);
+      const repeatCount = this.extractClickCount(args);
 
-    // Support ref-based click: resolve element bounds from content script
-    if (!coords && typeof args.ref === "string") {
-      try {
-        const response = (await chrome.tabs.sendMessage(tabId, {
-          action: "find_by_ref",
-          ref: args.ref,
-        })) as {
-          success: boolean;
-          bounds?: { x: number; y: number; width: number; height: number };
-        };
-        if (response?.success && response.bounds) {
-          // Click at center of element (these are viewport coords, not screenshot coords)
-          coords = {
-            x: Math.round(response.bounds.x + response.bounds.width / 2),
-            y: Math.round(response.bounds.y + response.bounds.height / 2),
+      // Support ref-based click: resolve element bounds from content script
+      if (!coords && typeof args.ref === "string") {
+        try {
+          const response = (await chrome.tabs.sendMessage(tabId, {
+            action: "find_by_ref",
+            ref: args.ref,
+          })) as {
+            success: boolean;
+            bounds?: { x: number; y: number; width: number; height: number };
           };
-          // Skip screenshot coordinate mapping since these are already viewport coords
-          await this.performClickSequence(tabId, coords.x, coords.y, button, clickCount, repeatCount);
-          return this.success(
-            this.formatClickMessage(button, clickCount, repeatCount, `element ${args.ref} at (${coords.x}, ${coords.y})`),
+          if (response?.success && response.bounds) {
+            // Click at center of element (these are viewport coords, not screenshot coords)
+            coords = {
+              x: Math.round(response.bounds.x + response.bounds.width / 2),
+              y: Math.round(response.bounds.y + response.bounds.height / 2),
+            };
+            // Skip screenshot coordinate mapping since these are already viewport coords
+            await this.performClickSequence(tabId, coords.x, coords.y, button, clickCount, repeatCount);
+            return this.success(
+              this.formatClickMessage(button, clickCount, repeatCount, `element ${args.ref} at (${coords.x}, ${coords.y})`),
+            );
+          } else {
+            return this.error(`Element not found: ${args.ref}`);
+          }
+        } catch (err) {
+          return this.error(
+            `Failed to resolve ref ${args.ref}: ${err instanceof Error ? err.message : String(err)}`,
           );
-        } else {
-          return this.error(`Element not found: ${args.ref}`);
         }
-      } catch (err) {
-        return this.error(
-          `Failed to resolve ref ${args.ref}: ${err instanceof Error ? err.message : String(err)}`,
-        );
       }
-    }
 
-    if (!coords) {
-      return this.error("Missing required arguments: x and y (numbers), or ref (string)");
-    }
+      if (!coords) {
+        return this.error("Missing required arguments: x and y (numbers), or ref (string)");
+      }
 
-    const viewport = await getViewportSize(tabId);
-    const viewportCoords = this.toViewport(coords.x, coords.y, viewport);
+      const viewport = await getViewportSize(tabId);
+      const viewportCoords = this.toViewport(coords.x, coords.y, viewport);
 
-    await this.performClickSequence(
-      tabId,
-      viewportCoords.x,
-      viewportCoords.y,
-      button,
-      clickCount,
-      repeatCount,
-    );
+      await this.performClickSequence(
+        tabId,
+        viewportCoords.x,
+        viewportCoords.y,
+        button,
+        clickCount,
+        repeatCount,
+      );
 
-    return this.success(
-      this.formatClickMessage(button, clickCount, repeatCount, `at (${coords.x}, ${coords.y})`),
-    );
+      return this.success(
+        this.formatClickMessage(button, clickCount, repeatCount, `at (${coords.x}, ${coords.y})`),
+      );
+    });
   }
 
   private async type(
@@ -816,6 +909,81 @@ export class ComputerTool implements ToolHandler {
     if (typeof args.count !== "number") return 1;
     if (!Number.isFinite(args.count)) return 1;
     return Math.max(1, Math.min(MAX_CLICK_COUNT, Math.floor(args.count)));
+  }
+
+  private extractScreenshotOverlay(
+    args: Record<string, unknown>,
+  ): ScreenshotOverlay {
+    if (args.overlay === "temporary-grid") return "temporary-grid";
+    return "none";
+  }
+
+  private createScreenshotMetadata(
+    viewport: ViewportSize,
+    screenshot: ScreenshotDimensions,
+  ) {
+    const screenshotToViewportX = viewport.width / screenshot.width;
+    const screenshotToViewportY = viewport.height / screenshot.height;
+
+    return {
+      screenshot: {
+        width: screenshot.width,
+        height: screenshot.height,
+      },
+      viewport: {
+        width: viewport.width,
+        height: viewport.height,
+      },
+      scale: {
+        screenshotToViewportX,
+        screenshotToViewportY,
+        viewportToScreenshotX: screenshot.width / viewport.width,
+        viewportToScreenshotY: screenshot.height / viewport.height,
+      },
+      coordinateSpace: "screenshot",
+    };
+  }
+
+  private async evaluate(
+    tabId: number,
+    expression: string,
+    awaitPromise: boolean,
+  ): Promise<void> {
+    await cdpManager.sendCommand(tabId, "Runtime.evaluate", {
+      expression,
+      awaitPromise,
+      returnByValue: true,
+    });
+  }
+
+  private async withVisualIndicatorHidden<T>(
+    tabId: number,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    let wasVisible = false;
+    try {
+      const resp = (await chrome.tabs.sendMessage(tabId, {
+        action: "pre_screenshot",
+      })) as { wasVisible?: boolean } | undefined;
+      wasVisible = resp?.wasVisible ?? false;
+    } catch {
+      // Content script may not be injected - input dispatch can still proceed.
+    }
+
+    try {
+      return await fn();
+    } finally {
+      if (wasVisible) {
+        try {
+          await chrome.tabs.sendMessage(tabId, {
+            action: "post_screenshot",
+            wasVisible: true,
+          });
+        } catch {
+          // Ignore - content script might not be present anymore.
+        }
+      }
+    }
   }
 
   private extractPointPath(
