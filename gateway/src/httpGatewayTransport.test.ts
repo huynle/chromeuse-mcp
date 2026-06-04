@@ -99,12 +99,17 @@ describe("HttpGatewayTransport", () => {
     const proxyTransport = new HttpGatewayTransport(baseUrl);
 
     await proxyTransport.connect();
-    await expect(proxyTransport.sendToolRequest("slow_tool", { tabId: 4 }, 5)).rejects.toThrow(
-      "Tool request timed out after 5ms: slow_tool"
+    // Use a comfortably large timeout so the request reliably reaches the
+    // server (which forwards it and then hangs) before the proxy aborts. A
+    // very small timeout races the localhost round-trip and is flaky on CI.
+    await expect(proxyTransport.sendToolRequest("slow_tool", { tabId: 4 }, 200)).rejects.toThrow(
+      "Tool request timed out after 200ms: slow_tool"
     );
 
     expect(proxyTransport.connected).toBe(false);
-    expect(serverTransport.sendToolRequest).toHaveBeenCalledWith("slow_tool", { tabId: 4 }, 5);
+    await vi.waitFor(() =>
+      expect(serverTransport.sendToolRequest).toHaveBeenCalledWith("slow_tool", { tabId: 4 }, 200)
+    );
   });
 
   it("connects after compatible health and maps successful tool responses", async () => {
