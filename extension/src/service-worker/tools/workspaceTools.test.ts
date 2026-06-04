@@ -6,6 +6,7 @@ import { MessageRouter } from "../messageRouter.js";
 import { registerTools } from "./index.js";
 import { WorkspaceListTool } from "./workspaceList.js";
 import { WorkspaceReadTool } from "./workspaceRead.js";
+import { WorkspaceWriteTool } from "./workspaceWrite.js";
 
 vi.mock("../../sidepanel/workspaceStorage.js", () => ({
   loadSelectedDirectoryHandle: vi.fn(),
@@ -240,6 +241,27 @@ describe("workspace file tools", () => {
     expect(resultText(binary)).toContain("Binary files cannot be read");
     expect(escaped.success).toBe(false);
     expect(resultText(escaped)).toContain("selected workspace root");
+  });
+
+  it("refuses to write outside the workspace root via path traversal", async () => {
+    const dataUrl = "data:text/plain;base64,aGVsbG8=";
+
+    selectWorkspace(directoryWithPermission("workspace", "granted"));
+    const traversal = await new WorkspaceWriteTool().execute(
+      { path: "../escape.txt", dataUrl },
+      {},
+    );
+
+    selectWorkspace(directoryWithPermission("workspace", "granted"));
+    const nested = await new WorkspaceWriteTool().execute(
+      { path: "docs/../../secret.txt", dataUrl },
+      {},
+    );
+
+    expect(traversal.success).toBe(false);
+    expect(resultText(traversal)).toContain("selected workspace root");
+    expect(nested.success).toBe(false);
+    expect(resultText(nested)).toContain("selected workspace root");
   });
 
   it("refuses oversized files before reading content", async () => {

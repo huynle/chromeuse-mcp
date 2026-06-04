@@ -228,9 +228,9 @@ Use `start` before the workflow, `screenshot` whenever a frame should be capture
 
 ### `save_resource`
 
-Downloads and saves resources from authenticated pages to the local filesystem.
+Downloads and saves resources from authenticated pages.
 
-Fetches a resource URL (using the page's authentication cookies) and saves it to the specified location. Supports all file types: images, PDFs, documents, archives, etc.
+Fetches a resource URL using the page's authentication cookies. When `outputPath` is provided, it must be workspace-relative and the file is written through the selected workspace's File System Access permission. When omitted, the browser saves the file to Downloads. Supports all file types: images, PDFs, documents, archives, etc.
 
 Inputs:
 
@@ -238,14 +238,14 @@ Inputs:
 | --- | --- | --- | --- |
 | `tabId` | number | yes | Target tab ID for authentication context. |
 | `url` | string | yes | URL of the resource to download. |
-| `outputPath` | string | no | Absolute path where to save the file. If omitted, saves to `~/Downloads`. Can be a directory (ending with `/`) or full file path. |
+| `outputPath` | string | no | Workspace-relative path where to save the file. Can be a directory (ending with `/`) or full file path. If omitted, saves to the browser's Downloads folder. |
 | `filename` | string | no | Filename to use. If omitted, extracts from URL or uses `download` as fallback. |
 
 Returns: Success status, saved file path, file size, and content type.
 
 Use cases:
 - Download PDFs, images, documents, ZIPs from internal network pages
-- Save embedded resources that require authentication
+- Save embedded resources that require authentication into the selected workspace
 - Archive page resources programmatically
 
 Example:
@@ -254,7 +254,7 @@ Example:
 save_resource({
   tabId: 123,
   url: "https://internal.company.com/docs/report.pdf",
-  outputPath: "/Users/me/Documents/",
+  outputPath: "Documents/",
   filename: "quarterly-report.pdf"
 })
 ```

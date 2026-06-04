@@ -7,7 +7,7 @@
  * Args:
  *   tabId (number, required): The tab to use for authentication context.
  *   url (string, required): The URL of the resource to download.
- *   outputPath (string, optional): Absolute path where to save the file.
+ *   outputPath (string, optional): Workspace-relative path where to save the file.
  *   filename (string, optional): Filename to use (extracted from URL if omitted).
  *
  * The tool uses fetch() in the page context to preserve authentication cookies,
@@ -87,6 +87,17 @@ export class SaveResourceTool implements ToolHandler {
 
       const outputPath =
         typeof args.outputPath === "string" ? args.outputPath : undefined;
+      if (outputPath && this.isAbsolutePath(outputPath)) {
+        return {
+          success: false,
+          content: [
+            {
+              type: "text",
+              text: "outputPath must be workspace-relative. Select a workspace in the side panel and pass a relative path, or omit outputPath to save to Downloads.",
+            },
+          ],
+        };
+      }
       const filename =
         typeof args.filename === "string" ? args.filename : undefined;
 
@@ -120,8 +131,8 @@ export class SaveResourceTool implements ToolHandler {
           // It's a full path
           savePath = outputPath;
         } else {
-          // It's just a filename override
-          savePath = finalFilename;
+          // It's just a relative filename
+          savePath = outputPath;
         }
       } else {
         // Default to Downloads folder
@@ -332,6 +343,10 @@ export class SaveResourceTool implements ToolHandler {
     }
 
     return undefined;
+  }
+
+  private isAbsolutePath(path: string): boolean {
+    return path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path);
   }
 
   /**

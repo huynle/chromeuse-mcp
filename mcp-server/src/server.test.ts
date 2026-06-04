@@ -79,9 +79,9 @@ describe("getToolSchemas", () => {
     expect(schema.inputSchema.required).toContain(property);
   };
 
-  it("returns exactly 18 tool schemas", () => {
+  it("returns one schema for every shared MCP tool name", () => {
     const schemas = getToolSchemas();
-    expect(schemas).toHaveLength(18);
+    expect(schemas).toHaveLength(ALL_TOOL_NAMES.length);
   });
 
   it("includes all tool names from shared constants", () => {
@@ -424,6 +424,33 @@ describe("getToolSchemas", () => {
       },
     });
   });
+
+  it("advertises workspace_write_file selected-workspace writes", () => {
+    const schema = schemaFor(TOOL_NAMES.WORKSPACE_WRITE_FILE);
+
+    expect(schema.description).toMatch(/selected workspace/i);
+    expect(schema.description).toMatch(/File System Access/i);
+    expect(schema.inputSchema.properties).toHaveProperty("path");
+    expect(schema.inputSchema.properties).toHaveProperty("dataUrl");
+    expect(schema.inputSchema.properties).toHaveProperty("createDirectories");
+    expect(schema.inputSchema.required).toEqual(["path", "dataUrl"]);
+  });
+
+  it("advertises save_resource selected-workspace path semantics", () => {
+    const schema = schemaFor(TOOL_NAMES.SAVE_RESOURCE);
+
+    expect(schema.description).toMatch(/selected workspace/i);
+    expect(schema.description).not.toMatch(/absolute path/i);
+    expect(schema.inputSchema.properties).toHaveProperty("outputPath");
+    expect(schema.inputSchema.required).toEqual(["tabId", "url"]);
+  });
+
+  it("advertises extension health checks", () => {
+    const schema = schemaFor(TOOL_NAMES.HEALTH_CHECK);
+
+    expect(schema.description).toMatch(/health/i);
+    expect(schema.inputSchema.properties).toEqual({});
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -455,9 +482,9 @@ describe("createMcpServer", () => {
     await server.close();
   });
 
-  it("lists all 18 tools via MCP protocol", async () => {
+  it("lists all shared MCP tools via MCP protocol", async () => {
     const result = await client.listTools();
-    expect(result.tools).toHaveLength(18);
+    expect(result.tools).toHaveLength(ALL_TOOL_NAMES.length);
   });
 
   it("tool names match shared constants", async () => {

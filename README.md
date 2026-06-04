@@ -22,7 +22,7 @@ ChromeUse MCP exposes browser automation tools plus workspace and document found
 | Browser control | `computer`, `navigate`, `resize_window` | Take screenshots, click, type, press keys, scroll, drag, move the pointer, navigate, reload, go back/forward, and resize windows. |
 | Page understanding | `read_page`, `get_page_text`, `find` | Read accessibility trees, HTML, text, visible page text, and find elements by human-readable descriptions. |
 | Form and file workflows | `form_input`, `file_upload` | Fill inputs, selects, checkboxes, radio buttons, contenteditable fields, and file inputs. |
-| File operations | `save_resource` | Download and save resources (images, PDFs, documents, ZIPs) from authenticated pages to local filesystem. |
+| File operations | `workspace_write_file`, `save_resource` | Write files inside the selected workspace and save authenticated resources to a workspace-relative path or browser Downloads. |
 | Debugging | `javascript_tool`, `read_console_messages`, `read_network_requests` | Run JavaScript through Chrome DevTools Protocol and inspect captured console/network activity. |
 | Tab management | `tabs_context`, `tabs_create`, `tabs_close` | List tabs and tab groups, create tabs, and close one or more tabs by ID. |
 | Recording | `gif_creator` | Capture browser workflows as animated GIFs. |

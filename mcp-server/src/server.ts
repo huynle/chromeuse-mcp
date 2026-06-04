@@ -592,9 +592,41 @@ const TOOL_SCHEMAS: Tool[] = [
     },
   },
   {
+    name: TOOL_NAMES.WORKSPACE_WRITE_FILE,
+    description:
+      "Write a file to the selected workspace using the File System Access API. Requires current readwrite permission for the selected workspace.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description: "Workspace-relative path to write inside the selected workspace.",
+        },
+        dataUrl: {
+          type: "string",
+          description: "Data URL containing the file content to write.",
+        },
+        createDirectories: {
+          type: "boolean",
+          description:
+            "Create parent directories if they do not exist. Defaults to true.",
+        },
+      },
+      required: ["path", "dataUrl"],
+    },
+  },
+  {
+    name: TOOL_NAMES.HEALTH_CHECK,
+    description: "Check health and connectivity of the ChromeUse extension tools.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
     name: TOOL_NAMES.SAVE_RESOURCE,
     description:
-      "Save a resource from a URL to the local filesystem. Fetches the resource using the page's authentication context (cookies) and saves it to the specified location. Supports all file types: images, PDFs, documents, archives, etc. Defaults to ~/Downloads folder if no path specified.",
+      "Save a resource from a URL. Fetches the resource using the page's authentication context (cookies), writes to the selected workspace when outputPath is provided, or downloads to the browser's Downloads folder when omitted. Supports all file types: images, PDFs, documents, archives, etc.",
     inputSchema: {
       type: "object",
       properties: {
@@ -609,7 +641,7 @@ const TOOL_SCHEMAS: Tool[] = [
         outputPath: {
           type: "string",
           description:
-            "Optional: absolute path where to save the file. If omitted, saves to ~/Downloads. Can be a directory (ending with /) or full file path.",
+            "Optional: workspace-relative path where to save the file. Can be a directory (ending with /) or full file path. If omitted, saves to the browser's Downloads folder.",
         },
         filename: {
           type: "string",

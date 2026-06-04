@@ -4,7 +4,10 @@
 
 set -e
 
-DIST_DIR="chromeuse-mcp-package"
+RELEASE_DIR="release"
+DIST_DIR="$RELEASE_DIR/chromeuse-mcp-package"
+ARCHIVE_PATH="$RELEASE_DIR/chromeuse-mcp-package.tar.gz"
+mkdir -p "$RELEASE_DIR"
 rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR"
 
@@ -203,16 +206,16 @@ INSTALL
 
 # Create package archive
 echo "  - Creating archive..."
-tar -czf chromeuse-mcp-package.tar.gz "$DIST_DIR"
+tar -czf "$ARCHIVE_PATH" -C "$RELEASE_DIR" "chromeuse-mcp-package"
 
 echo ""
 echo "✅ Package created successfully!"
 echo ""
-echo "📦 Archive: chromeuse-mcp-package.tar.gz"
+echo "📦 Archive: $ARCHIVE_PATH"
 echo "📁 Directory: $DIST_DIR/"
 echo ""
 echo "To test the package:"
-echo "  1. Extract: tar -xzf chromeuse-mcp-package.tar.gz"
+echo "  1. Extract: tar -xzf $ARCHIVE_PATH"
 echo "  2. Follow: $DIST_DIR/INSTALL.md"
 echo ""
 echo "To distribute:"
