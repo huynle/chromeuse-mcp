@@ -30,6 +30,10 @@ ChromeUse MCP exposes browser automation tools plus workspace and document found
 | Emulation | `emulate` | Emulate device metrics, touch, user-agent, geolocation, color scheme, and network/CPU throttling. |
 | Performance & capture | `performance_metrics`, `screenshot_element`, `print_to_pdf` | Capture Core Web Vitals and timings, screenshot one element, or save the page as PDF. |
 | Data extraction | `extract_structured` | Extract a table or repeated list into structured JSON (optionally saved to the workspace). |
+| Code quality | `coverage`, `accessibility_audit` | Report unused JS/CSS and run axe-core WCAG audits. |
+| Source debugging | `debug_inspect` | Set a one-shot breakpoint and capture the frame + locals on hit. |
+| Clipboard | `clipboard` | Read from and write to the system clipboard. |
+| Macros | `macro` | Record, replay, and schedule UI interaction macros. |
 | Tab management | `tabs_context`, `tabs_create`, `tabs_close`, `tab_session` | List/create/close tabs and tab groups, and save/restore named tab sessions. |
 | Browser data | `history_search`, `bookmarks` | Search browsing history and search/list/create bookmarks. |
 | Recording | `gif_creator` | Capture browser workflows as animated GIFs. |

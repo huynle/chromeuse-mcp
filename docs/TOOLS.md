@@ -432,6 +432,41 @@ Search browsing history by `query`, `maxResults` (default 50), and `days`
 omitted), `create` (`title`+optional `url`, optional `parentId`). Requires the
 `bookmarks` permission.
 
+## Code-quality, debugging, and macro tools
+
+### `coverage`
+
+Measure unused JavaScript and CSS. Call with `action: "start"`, exercise the
+page, then `action: "stop"` to get per-URL used vs total functions (JS,
+function-level) and rules (CSS), with overall percentages.
+
+### `accessibility_audit`
+
+Run an axe-core WCAG audit on a `tabId`. Returns violations (id, impact, help,
+affected node count, sample targets). Optional `tags` (e.g. `["wcag2a","wcag2aa"]`)
+and `selector` to scope.
+
+### `debug_inspect`
+
+Set a one-shot breakpoint at `urlRegex` + `lineNumber` (0-based), optionally only
+when `condition` is truthy. When hit (within `timeoutMs`), returns the top call
+frame, its local variables, and an optional `expression` evaluated in that frame,
+then always resumes. The page is never left frozen.
+
+### `clipboard`
+
+`action: "write"` copies `text`; `action: "read"` returns clipboard text. Read can
+fail when the browser blocks unfocused reads — the tool reports that clearly.
+
+### `macro`
+
+Record and replay UI interactions. `record_start` (`tabId`) injects a recorder
+that captures clicks, input changes, and navigations; `record_stop` (`tabId`,
+`name`) saves them. `replay` (`name`, `tabId`) re-runs the steps with waits;
+`schedule` (`name`, `periodMinutes`) replays on a recurring alarm in a background
+tab; `list`/`get`/`delete`/`unschedule` manage macros. Recording state is
+in-memory — complete a recording in one session.
+
 ## Safety Guidance
 
 - Confirm the target `tabId` before destructive actions.
