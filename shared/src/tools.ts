@@ -57,6 +57,8 @@ export const TOOL_NAMES = {
   COOKIES: "cookies",
   /** Read/write a tab's localStorage or sessionStorage */
   STORAGE: "storage",
+  /** Emulate device metrics, geolocation, color scheme, and network/CPU throttling */
+  EMULATE: "emulate",
 } as const;
 
 /** Union type of all valid tool name strings */

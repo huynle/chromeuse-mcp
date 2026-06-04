@@ -34,6 +34,7 @@ import { WaitForTool } from "./waitFor.js";
 import { NetworkInterceptTool } from "./networkIntercept.js";
 import { CookiesTool } from "./cookies.js";
 import { StorageTool } from "./storage.js";
+import { EmulateTool } from "./emulate.js";
 
 /**
  * Register all tool handlers with the message router.
@@ -67,6 +68,7 @@ export function registerTools(router: MessageRouter): void {
   router.register(TOOL_NAMES.NETWORK_INTERCEPT, new NetworkInterceptTool());
   router.register(TOOL_NAMES.COOKIES, new CookiesTool());
   router.register(TOOL_NAMES.STORAGE, new StorageTool());
+  router.register(TOOL_NAMES.EMULATE, new EmulateTool());
 
   console.log(
     "[Tools] Registered:",

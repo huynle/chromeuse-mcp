@@ -773,6 +773,44 @@ const TOOL_SCHEMAS: Tool[] = [
       required: ["tabId", "action"],
     },
   },
+  {
+    name: TOOL_NAMES.EMULATE,
+    description:
+      "Emulate device and environment conditions for a tab (responsive/edge-case testing). Actions: 'device' (viewport + mobile/touch, via preset or explicit width/height), 'user_agent', 'geolocation', 'color_scheme' (light/dark), 'network' (online/offline/slow-3g/fast-3g), 'cpu' (slowdown multiplier), and 'reset' to clear all overrides.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tabId: { type: "number", description: "Target tab ID." },
+        action: {
+          type: "string",
+          enum: ["device", "user_agent", "geolocation", "color_scheme", "network", "cpu", "reset"],
+          description: "Emulation action.",
+        },
+        preset: {
+          type: "string",
+          enum: ["iphone-12", "pixel-5", "ipad", "desktop"],
+          description: "Device preset for 'device'.",
+        },
+        width: { type: "number", description: "Viewport width for 'device' (if no preset)." },
+        height: { type: "number", description: "Viewport height for 'device' (if no preset)." },
+        deviceScaleFactor: { type: "number", description: "Device scale factor for 'device' (default 1)." },
+        mobile: { type: "boolean", description: "Mobile mode for 'device'." },
+        touch: { type: "boolean", description: "Touch emulation for 'device'." },
+        userAgent: { type: "string", description: "User-Agent string for 'user_agent'." },
+        latitude: { type: "number", description: "Latitude for 'geolocation'." },
+        longitude: { type: "number", description: "Longitude for 'geolocation'." },
+        accuracy: { type: "number", description: "Accuracy in meters for 'geolocation' (default 100)." },
+        scheme: { type: "string", enum: ["light", "dark", "no-preference"], description: "prefers-color-scheme for 'color_scheme'." },
+        profile: { type: "string", enum: ["online", "offline", "slow-3g", "fast-3g"], description: "Network profile for 'network'." },
+        offline: { type: "boolean", description: "Offline flag for 'network' (if no profile)." },
+        latency: { type: "number", description: "Latency ms for 'network' (if no profile)." },
+        downloadThroughput: { type: "number", description: "Download bytes/sec for 'network' (if no profile; -1 = unlimited)." },
+        uploadThroughput: { type: "number", description: "Upload bytes/sec for 'network' (if no profile; -1 = unlimited)." },
+        rate: { type: "number", description: "CPU slowdown multiplier for 'cpu' (>= 1)." },
+      },
+      required: ["tabId", "action"],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------

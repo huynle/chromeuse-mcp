@@ -66,7 +66,7 @@ Turn `resize_window` into real responsive / edge-case testing.
 
 | Tool | Status | What it does |
 | --- | --- | --- |
-| `emulate` | ⏳ | Emulate device metrics + touch, user-agent override, geolocation, `prefers-color-scheme` (dark/light), and network/CPU throttling (offline, slow-3G). `reset` clears overrides. CDP `Emulation` + `Network.emulateNetworkConditions`. |
+| `emulate` | ✅ | Emulate device metrics + touch, user-agent override, geolocation, `prefers-color-scheme` (dark/light), and network/CPU throttling (offline, slow-3G). `reset` clears overrides. CDP `Emulation` + `Network.emulateNetworkConditions`. |
 
 **Effort:** M · **Permissions:** none new.
 
