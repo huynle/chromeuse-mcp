@@ -109,8 +109,9 @@ Turn `resize_window` into real responsive / edge-case testing.
   return WCAG violations (id, impact, affected nodes, sample targets).
 - ✅ **JS/CSS coverage** (`coverage`). Report unused JavaScript/CSS via CDP
   precise coverage + CSS rule-usage tracking (function-level JS, rule-level CSS).
-- 🔭 **Source-level debugging.** Set breakpoints and inspect scopes via the
-  CDP `Debugger` domain.
+- ✅ **Source-level debugging** (`debug_inspect`). Set a one-shot breakpoint,
+  capture the top frame + locals (and an optional evaluated expression) when
+  hit, then always resume. CDP `Debugger` domain.
 - ✅ **Clipboard read/write** (`clipboard`). Via the offscreen document
   (textarea + execCommand for write, navigator.clipboard for read). Read can
   fail when the browser blocks unfocused reads — the tool reports that clearly.

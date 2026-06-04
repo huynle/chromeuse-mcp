@@ -951,6 +951,24 @@ const TOOL_SCHEMAS: Tool[] = [
       required: ["action"],
     },
   },
+  {
+    name: TOOL_NAMES.DEBUG_INSPECT,
+    description:
+      "Set a one-shot breakpoint and capture program state when it is hit, then resume. Breaks at urlRegex + lineNumber (0-based), optionally only when 'condition' is truthy. Returns the top call frame, its local variables, and an optional 'expression' evaluated in that frame. The page is always resumed afterward.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tabId: { type: "number", description: "Target tab ID." },
+        urlRegex: { type: "string", description: "Regex matching the script URL, e.g. \"app\\\\.js\"." },
+        lineNumber: { type: "number", description: "0-based line number for the breakpoint." },
+        columnNumber: { type: "number", description: "Optional 0-based column." },
+        condition: { type: "string", description: "Only break when this expression is truthy." },
+        expression: { type: "string", description: "Expression to evaluate in the paused frame." },
+        timeoutMs: { type: "number", description: "How long to wait for the breakpoint to hit (default 15000)." },
+      },
+      required: ["tabId", "urlRegex", "lineNumber"],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------

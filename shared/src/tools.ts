@@ -79,6 +79,8 @@ export const TOOL_NAMES = {
   ACCESSIBILITY_AUDIT: "accessibility_audit",
   /** Read from or write to the system clipboard */
   CLIPBOARD: "clipboard",
+  /** Set a breakpoint, capture program state on hit, then resume */
+  DEBUG_INSPECT: "debug_inspect",
 } as const;
 
 /** Union type of all valid tool name strings */
