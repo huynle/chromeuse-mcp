@@ -107,7 +107,8 @@ Turn `resize_window` into real responsive / edge-case testing.
   schedule (`chrome.alarms`), surfacing results in the side panel.
 - 🔭 **Accessibility audit (axe-core).** Inject `axe-core` and return WCAG
   violations. Heavier because it bundles a large library.
-- 🔭 **JS/CSS coverage.** Report unused JavaScript/CSS via CDP coverage APIs.
+- ✅ **JS/CSS coverage** (`coverage`). Report unused JavaScript/CSS via CDP
+  precise coverage + CSS rule-usage tracking (function-level JS, rule-level CSS).
 - 🔭 **Source-level debugging.** Set breakpoints and inspect scopes via the
   CDP `Debugger` domain.
 - 🔭 **Clipboard read/write.** Cross-app glue; reliable clipboard access from an

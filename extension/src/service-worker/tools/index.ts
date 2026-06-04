@@ -42,6 +42,7 @@ import { ExtractStructuredTool } from "./extractStructured.js";
 import { TabSessionTool } from "./tabSession.js";
 import { HistorySearchTool } from "./historySearch.js";
 import { BookmarksTool } from "./bookmarks.js";
+import { CoverageTool } from "./coverage.js";
 
 /**
  * Register all tool handlers with the message router.
@@ -83,6 +84,7 @@ export function registerTools(router: MessageRouter): void {
   router.register(TOOL_NAMES.TAB_SESSION, new TabSessionTool());
   router.register(TOOL_NAMES.HISTORY_SEARCH, new HistorySearchTool());
   router.register(TOOL_NAMES.BOOKMARKS, new BookmarksTool());
+  router.register(TOOL_NAMES.COVERAGE, new CoverageTool());
 
   console.log(
     "[Tools] Registered:",

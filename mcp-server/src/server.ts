@@ -910,6 +910,19 @@ const TOOL_SCHEMAS: Tool[] = [
       required: ["action"],
     },
   },
+  {
+    name: TOOL_NAMES.COVERAGE,
+    description:
+      "Measure JavaScript and CSS coverage to find unused code. Call with action 'start', interact with the page, then 'stop' to get per-URL used vs total functions (JS, function-level) and used vs total rules (CSS), with overall percentages.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tabId: { type: "number", description: "Target tab ID." },
+        action: { type: "string", enum: ["start", "stop"], description: "Begin or end coverage tracking." },
+      },
+      required: ["tabId", "action"],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------

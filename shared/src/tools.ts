@@ -73,6 +73,8 @@ export const TOOL_NAMES = {
   HISTORY_SEARCH: "history_search",
   /** Search, list, and create bookmarks */
   BOOKMARKS: "bookmarks",
+  /** Measure JavaScript and CSS coverage (unused code) */
+  COVERAGE: "coverage",
 } as const;
 
 /** Union type of all valid tool name strings */
