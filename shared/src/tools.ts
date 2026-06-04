@@ -53,6 +53,10 @@ export const TOOL_NAMES = {
   WAIT_FOR: "wait_for",
   /** Mock or block network requests via the CDP Fetch domain */
   NETWORK_INTERCEPT: "network_intercept",
+  /** Inspect and mutate browser cookies */
+  COOKIES: "cookies",
+  /** Read/write a tab's localStorage or sessionStorage */
+  STORAGE: "storage",
 } as const;
 
 /** Union type of all valid tool name strings */

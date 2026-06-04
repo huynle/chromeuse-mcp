@@ -14,7 +14,8 @@
     "offscreen",
     "alarms",
     "sidePanel",
-    "downloads"
+    "downloads",
+    "cookies"
   ],
   "host_permissions": [
     "<all_urls>"

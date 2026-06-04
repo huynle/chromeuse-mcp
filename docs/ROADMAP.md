@@ -53,8 +53,8 @@ clean state between automation runs.
 
 | Tool | Status | What it does |
 | --- | --- | --- |
-| `cookies` | ⏳ | `get` / `set` / `delete` / `clear` cookies for a URL or domain (`chrome.cookies`). Useful for exporting an authenticated session or resetting state. |
-| `storage` | ⏳ | `get` / `set` / `remove` / `clear` `localStorage` and `sessionStorage` entries for a tab (via `Runtime.evaluate`). |
+| `cookies` | ✅ | `get` / `set` / `delete` / `clear` cookies for a URL or domain (`chrome.cookies`). Useful for exporting an authenticated session or resetting state. |
+| `storage` | ✅ | `get` / `set` / `remove` / `clear` `localStorage` and `sessionStorage` entries for a tab (via `Runtime.evaluate`). |
 
 **Effort:** M · **Permissions:** `cookies` (storage needs none).
 

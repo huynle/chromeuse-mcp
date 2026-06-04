@@ -736,6 +736,43 @@ const TOOL_SCHEMAS: Tool[] = [
       required: ["tabId", "action"],
     },
   },
+  {
+    name: TOOL_NAMES.COOKIES,
+    description:
+      "Inspect and mutate browser cookies. 'get' lists cookies for a url or domain, 'set' creates/updates one, 'delete' removes one by url+name, 'clear' removes all for a url or domain. Useful for exporting an authenticated session or resetting state between runs.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: { type: "string", enum: ["get", "set", "delete", "clear"], description: "Cookie action." },
+        url: { type: "string", description: "Cookie URL (required for set/delete; usable for get/clear)." },
+        domain: { type: "string", description: "Domain filter for get/clear (alternative to url)." },
+        name: { type: "string", description: "Cookie name (required for set/delete)." },
+        value: { type: "string", description: "Cookie value (for set)." },
+        path: { type: "string", description: "Cookie path (for set)." },
+        secure: { type: "boolean", description: "Secure flag (for set)." },
+        httpOnly: { type: "boolean", description: "HttpOnly flag (for set)." },
+        expirationDate: { type: "number", description: "Expiry as a UNIX timestamp in seconds (for set)." },
+        sameSite: { type: "string", enum: ["no_restriction", "lax", "strict"], description: "SameSite policy (for set)." },
+      },
+      required: ["action"],
+    },
+  },
+  {
+    name: TOOL_NAMES.STORAGE,
+    description:
+      "Read or write a tab's localStorage or sessionStorage. 'get' returns one key (or all entries when key is omitted), 'set' assigns a key, 'remove' deletes a key, 'clear' empties the store. Use 'area' to choose local (default) or session.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tabId: { type: "number", description: "Target tab ID." },
+        action: { type: "string", enum: ["get", "set", "remove", "clear"], description: "Storage action." },
+        area: { type: "string", enum: ["local", "session"], description: "Storage area (default local)." },
+        key: { type: "string", description: "Storage key (required for set/remove; optional for get)." },
+        value: { type: "string", description: "Value to store (required for set)." },
+      },
+      required: ["tabId", "action"],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
