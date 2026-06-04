@@ -652,6 +652,48 @@ const TOOL_SCHEMAS: Tool[] = [
       required: ["tabId", "url"],
     },
   },
+  {
+    name: TOOL_NAMES.WAIT_FOR,
+    description:
+      "Wait until a page condition holds before continuing, instead of guessing a delay. Use after a click/navigation to synchronize the next step. Conditions: a CSS selector becomes visible, a selector becomes hidden/absent, page text appears, network goes idle, or a console message matches a pattern.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tabId: { type: "number", description: "Target tab ID" },
+        for: {
+          type: "string",
+          enum: ["selector", "selector_hidden", "text", "network_idle", "console"],
+          description:
+            "Condition to wait for: 'selector' (visible), 'selector_hidden', 'text' (present in body), 'network_idle', or 'console' (message matches pattern).",
+        },
+        selector: {
+          type: "string",
+          description: "CSS selector. Required for 'selector' and 'selector_hidden'.",
+        },
+        text: {
+          type: "string",
+          description: "Text to wait for in the page body. Required for 'text'.",
+        },
+        pattern: {
+          type: "string",
+          description: "JavaScript regex source matched against console output. Required for 'console'.",
+        },
+        timeoutMs: {
+          type: "number",
+          description: "Overall timeout in milliseconds (default 10000).",
+        },
+        idleMs: {
+          type: "number",
+          description: "Idle window in milliseconds for 'network_idle' (default 500).",
+        },
+        pollMs: {
+          type: "number",
+          description: "Poll interval in milliseconds (default 200).",
+        },
+      },
+      required: ["tabId", "for"],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------

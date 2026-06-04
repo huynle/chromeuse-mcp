@@ -27,7 +27,7 @@ flow deterministic.
 
 | Tool | Status | What it does |
 | --- | --- | --- |
-| `wait_for` | ⏳ | Wait until a condition holds: CSS selector visible/hidden, page text present, network idle, a console message matches a pattern, or a fixed timeout. CDP-based, with an overall timeout and clear timeout errors. |
+| `wait_for` | ✅ | Wait until a condition holds: CSS selector visible/hidden, page text present, network idle, a console message matches a pattern, or a fixed timeout. CDP-based, with an overall timeout and clear timeout errors. |
 
 **Effort:** M · **Permissions:** none new.
 

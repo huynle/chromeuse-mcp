@@ -49,6 +49,8 @@ export const TOOL_NAMES = {
   HEALTH_CHECK: "health_check",
   /** Save a resource from a URL to local filesystem */
   SAVE_RESOURCE: "save_resource",
+  /** Wait until a page condition holds (selector, text, network idle, console) */
+  WAIT_FOR: "wait_for",
 } as const;
 
 /** Union type of all valid tool name strings */

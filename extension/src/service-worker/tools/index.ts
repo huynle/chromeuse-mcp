@@ -30,6 +30,7 @@ import { TabsCreateTool } from "./tabsCreate.js";
 import { WorkspaceListTool } from "./workspaceList.js";
 import { WorkspaceReadTool } from "./workspaceRead.js";
 import { WorkspaceWriteTool } from "./workspaceWrite.js";
+import { WaitForTool } from "./waitFor.js";
 
 /**
  * Register all tool handlers with the message router.
@@ -59,6 +60,7 @@ export function registerTools(router: MessageRouter): void {
   router.register(TOOL_NAMES.WORKSPACE_LIST_FILES, new WorkspaceListTool());
   router.register(TOOL_NAMES.WORKSPACE_READ_FILE, new WorkspaceReadTool());
   router.register(TOOL_NAMES.WORKSPACE_WRITE_FILE, new WorkspaceWriteTool());
+  router.register(TOOL_NAMES.WAIT_FOR, new WaitForTool());
 
   console.log(
     "[Tools] Registered:",
