@@ -694,6 +694,48 @@ const TOOL_SCHEMAS: Tool[] = [
       required: ["tabId", "for"],
     },
   },
+  {
+    name: TOOL_NAMES.NETWORK_INTERCEPT,
+    description:
+      "Mock or block network requests for a tab via the Chrome DevTools Fetch domain. Use 'mock' to return a canned status/body for matching requests (stub an API, force an error), 'block' to fail them, 'list' to see active rules, and 'clear' to remove all rules. Rules match by URL substring, or glob when the pattern contains '*', plus an optional HTTP method.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tabId: { type: "number", description: "Target tab ID" },
+        action: {
+          type: "string",
+          enum: ["mock", "block", "list", "clear"],
+          description: "Interception action to perform.",
+        },
+        urlPattern: {
+          type: "string",
+          description: "URL substring (or glob with '*') to match. Required for mock/block.",
+        },
+        method: {
+          type: "string",
+          description: "Optional HTTP method to match (e.g. GET, POST).",
+        },
+        status: {
+          type: "number",
+          description: "Response status code for 'mock' (default 200).",
+        },
+        body: {
+          type: "string",
+          description: "Response body for 'mock'.",
+        },
+        contentType: {
+          type: "string",
+          description: "Content-Type header for 'mock' (default application/json).",
+        },
+        headers: {
+          type: "object",
+          description: "Extra response headers for 'mock' as a name->value map.",
+          additionalProperties: { type: "string" },
+        },
+      },
+      required: ["tabId", "action"],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------

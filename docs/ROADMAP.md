@@ -40,7 +40,7 @@ debugging: mock API responses, force error states, and block noisy requests.
 
 | Tool | Status | What it does |
 | --- | --- | --- |
-| `network_intercept` | ⏳ | Manage interception rules via the CDP `Fetch` domain: `mock` (return a canned status/body), `block` (fail matching requests), `list`, and `clear`. Rules match by URL substring/glob and optional method. |
+| `network_intercept` | ✅ | Manage interception rules via the CDP `Fetch` domain: `mock` (return a canned status/body), `block` (fail matching requests), `list`, and `clear`. Rules match by URL substring/glob and optional method. |
 
 **Effort:** M–L · **Permissions:** none new (CDP via debugger).
 

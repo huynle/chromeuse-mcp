@@ -51,6 +51,8 @@ export const TOOL_NAMES = {
   SAVE_RESOURCE: "save_resource",
   /** Wait until a page condition holds (selector, text, network idle, console) */
   WAIT_FOR: "wait_for",
+  /** Mock or block network requests via the CDP Fetch domain */
+  NETWORK_INTERCEPT: "network_intercept",
 } as const;
 
 /** Union type of all valid tool name strings */

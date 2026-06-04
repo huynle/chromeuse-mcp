@@ -31,6 +31,7 @@ import { WorkspaceListTool } from "./workspaceList.js";
 import { WorkspaceReadTool } from "./workspaceRead.js";
 import { WorkspaceWriteTool } from "./workspaceWrite.js";
 import { WaitForTool } from "./waitFor.js";
+import { NetworkInterceptTool } from "./networkIntercept.js";
 
 /**
  * Register all tool handlers with the message router.
@@ -61,6 +62,7 @@ export function registerTools(router: MessageRouter): void {
   router.register(TOOL_NAMES.WORKSPACE_READ_FILE, new WorkspaceReadTool());
   router.register(TOOL_NAMES.WORKSPACE_WRITE_FILE, new WorkspaceWriteTool());
   router.register(TOOL_NAMES.WAIT_FOR, new WaitForTool());
+  router.register(TOOL_NAMES.NETWORK_INTERCEPT, new NetworkInterceptTool());
 
   console.log(
     "[Tools] Registered:",
