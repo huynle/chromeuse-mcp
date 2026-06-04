@@ -145,7 +145,8 @@ describe("sidePanelHandler", () => {
   it("updates the action badge from the combined connection status", () => {
     setConnectionStatus("connected");
 
-    expect(chromeStub.action.setBadgeText).toHaveBeenCalledWith({ text: "ON" });
+    // Connected shows no badge text (clean icon); status lives in the side panel.
+    expect(chromeStub.action.setBadgeText).toHaveBeenCalledWith({ text: "" });
     expect(chromeStub.action.setBadgeBackgroundColor).toHaveBeenCalledWith({
       color: "#10B981",
     });

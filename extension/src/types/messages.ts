@@ -45,13 +45,19 @@ export const BADGE_COLORS: Record<ConnectionStatus, string> = {
   error: "#EF4444", // red
 };
 
-/** Badge text corresponding to connection states */
+/**
+ * Badge text corresponding to connection states.
+ *
+ * Normal states (connected/connecting/waiting/disconnected) show no badge text
+ * to keep the toolbar icon clean — the side panel reflects the full connection
+ * status. Only an error surfaces a concise "!" indicator.
+ */
 export const BADGE_TEXT: Record<ConnectionStatus, string> = {
   disconnected: "",
-  connecting: "...",
-  waiting: "...",
-  connected: "ON",
-  error: "ERR",
+  connecting: "",
+  waiting: "",
+  connected: "",
+  error: "!",
 };
 
 // ---------------------------------------------------------------------------

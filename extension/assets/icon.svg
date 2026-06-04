@@ -1,18 +1,31 @@
 <svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="8" y="8" width="112" height="112" rx="28" fill="#2563EB"/>
-  <path d="M22 32C38 15 76 13 99 35C114 49 113 84 92 103C72 121 39 113 24 91C10 70 9 46 22 32Z" fill="#14B8A6" opacity="0.42"/>
-  <path d="M84 17C104 26 117 47 113 70C109 94 88 111 64 112C89 100 101 78 96 55C92 37 79 24 61 17C68 15 76 15 84 17Z" fill="#7C3AED" opacity="0.5"/>
+  <defs>
+    <linearGradient id="bg" x1="12" y1="8" x2="116" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4F46E5"/>
+      <stop offset="0.55" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="30" y1="28" x2="98" y2="92" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E8EEF7"/>
+    </linearGradient>
+  </defs>
 
-  <rect x="27" y="31" width="74" height="56" rx="13" fill="#F8FAFC"/>
-  <path d="M27 45H101" stroke="#1E40AF" stroke-opacity="0.22" stroke-width="4"/>
-  <circle cx="39" cy="39" r="3" fill="#F97316"/>
-  <circle cx="50" cy="39" r="3" fill="#22C55E"/>
-  <circle cx="61" cy="39" r="3" fill="#38BDF8"/>
+  <!-- App tile -->
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#bg)"/>
+  <!-- Soft top sheen -->
+  <rect x="8" y="8" width="112" height="60" rx="28" fill="#FFFFFF" opacity="0.06"/>
 
-  <path d="M46 58L82 91L67 94L59 111L46 58Z" fill="#0F172A"/>
-  <path d="M53 67L75 87L65 89L59 101L53 67Z" fill="#FFFFFF"/>
+  <!-- Browser window -->
+  <rect x="28" y="29" width="72" height="60" rx="12" fill="url(#screen)"/>
+  <!-- Title bar divider -->
+  <path d="M28 44H100" stroke="#CBD5E1" stroke-width="3"/>
+  <!-- Traffic-light dots -->
+  <circle cx="40" cy="36.5" r="3.4" fill="#F87171"/>
+  <circle cx="51" cy="36.5" r="3.4" fill="#FBBF24"/>
+  <circle cx="62" cy="36.5" r="3.4" fill="#34D399"/>
 
-  <path d="M83 52L88 42L93 52L103 57L93 62L88 72L83 62L73 57L83 52Z" fill="#FDE68A"/>
-  <path d="M96 27L99 22L102 27L107 30L102 33L99 38L96 33L91 30L96 27Z" fill="#FFFFFF"/>
-  <path d="M22 75L27 67L32 75L40 80L32 85L27 93L22 85L14 80L22 75Z" fill="#A7F3D0"/>
+  <!-- Cursor arrow (automation / click) -->
+  <path d="M50 53L88 88L70.5 90.5L61 108L50 53Z" fill="#0F172A"/>
+  <path d="M56.5 61.5L78 81.5L67.5 83.5L61.5 95L56.5 61.5Z" fill="#FFFFFF"/>
 </svg>
