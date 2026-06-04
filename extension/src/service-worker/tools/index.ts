@@ -39,6 +39,9 @@ import { PerformanceMetricsTool } from "./performanceMetrics.js";
 import { ScreenshotElementTool } from "./screenshotElement.js";
 import { PrintToPdfTool } from "./printToPdf.js";
 import { ExtractStructuredTool } from "./extractStructured.js";
+import { TabSessionTool } from "./tabSession.js";
+import { HistorySearchTool } from "./historySearch.js";
+import { BookmarksTool } from "./bookmarks.js";
 
 /**
  * Register all tool handlers with the message router.
@@ -77,6 +80,9 @@ export function registerTools(router: MessageRouter): void {
   router.register(TOOL_NAMES.SCREENSHOT_ELEMENT, new ScreenshotElementTool());
   router.register(TOOL_NAMES.PRINT_TO_PDF, new PrintToPdfTool());
   router.register(TOOL_NAMES.EXTRACT_STRUCTURED, new ExtractStructuredTool());
+  router.register(TOOL_NAMES.TAB_SESSION, new TabSessionTool());
+  router.register(TOOL_NAMES.HISTORY_SEARCH, new HistorySearchTool());
+  router.register(TOOL_NAMES.BOOKMARKS, new BookmarksTool());
 
   console.log(
     "[Tools] Registered:",

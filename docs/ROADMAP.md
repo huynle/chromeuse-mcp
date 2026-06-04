@@ -89,9 +89,9 @@ Turn `resize_window` into real responsive / edge-case testing.
 
 | Tool | Status | What it does |
 | --- | --- | --- |
-| `tab_session` | ⏳ | `save` the current window's tabs/groups as a named session and `restore` / `list` / `delete` later. Stored in `chrome.storage.local`. |
-| `history_search` | ⏳ | Search browsing history by text/time (`chrome.history`) — "find the article I read last week." |
-| `bookmarks` | ⏳ | Search / list / create bookmarks (`chrome.bookmarks`). |
+| `tab_session` | ✅ | `save` the current window's tabs/groups as a named session and `restore` / `list` / `delete` later. Stored in `chrome.storage.local`. |
+| `history_search` | ✅ | Search browsing history by text/time (`chrome.history`) — "find the article I read last week." |
+| `bookmarks` | ✅ | Search / list / create bookmarks (`chrome.bookmarks`). |
 
 **Effort:** S–M each · **Permissions:** `history`, `bookmarks`.
 

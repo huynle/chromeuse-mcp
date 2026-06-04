@@ -866,6 +866,50 @@ const TOOL_SCHEMAS: Tool[] = [
       required: ["tabId", "selector"],
     },
   },
+  {
+    name: TOOL_NAMES.TAB_SESSION,
+    description:
+      "Save and restore named sets of tabs (a 'project'). 'save' snapshots a window's tabs and group membership under a name, 'restore' opens them in a new window recreating groups, 'list' shows saved sessions, 'delete' removes one.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: { type: "string", enum: ["save", "restore", "list", "delete"], description: "Session action." },
+        name: { type: "string", description: "Session name (required for save/restore/delete)." },
+        windowId: { type: "number", description: "Window to save (defaults to the last focused window)." },
+      },
+      required: ["action"],
+    },
+  },
+  {
+    name: TOOL_NAMES.HISTORY_SEARCH,
+    description:
+      "Search the browser's history by text and time window. Returns matching pages with title, url, last visit time, and visit count.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Text to match (empty matches everything)." },
+        maxResults: { type: "number", description: "Maximum results (default 50)." },
+        days: { type: "number", description: "Only include visits from the last N days." },
+      },
+    },
+  },
+  {
+    name: TOOL_NAMES.BOOKMARKS,
+    description:
+      "Search, list, or create bookmarks. 'search' finds bookmarks matching a query, 'list' returns children of a folder (root when id omitted), 'create' adds a bookmark (with url) or folder (title only).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: { type: "string", enum: ["search", "list", "create"], description: "Bookmark action." },
+        query: { type: "string", description: "Search text (required for search)." },
+        id: { type: "string", description: "Folder id for 'list'." },
+        parentId: { type: "string", description: "Parent folder id for 'create'." },
+        title: { type: "string", description: "Title for 'create'." },
+        url: { type: "string", description: "URL for 'create' (omit to create a folder)." },
+      },
+      required: ["action"],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------

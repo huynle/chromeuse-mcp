@@ -67,6 +67,12 @@ export const TOOL_NAMES = {
   PRINT_TO_PDF: "print_to_pdf",
   /** Extract a table or repeated list into structured JSON */
   EXTRACT_STRUCTURED: "extract_structured",
+  /** Save and restore named sets of tabs */
+  TAB_SESSION: "tab_session",
+  /** Search browsing history */
+  HISTORY_SEARCH: "history_search",
+  /** Search, list, and create bookmarks */
+  BOOKMARKS: "bookmarks",
 } as const;
 
 /** Union type of all valid tool name strings */

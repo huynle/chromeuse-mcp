@@ -15,7 +15,9 @@
     "alarms",
     "sidePanel",
     "downloads",
-    "cookies"
+    "cookies",
+    "history",
+    "bookmarks"
   ],
   "host_permissions": [
     "<all_urls>"
