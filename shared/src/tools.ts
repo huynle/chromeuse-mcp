@@ -77,6 +77,8 @@ export const TOOL_NAMES = {
   COVERAGE: "coverage",
   /** Run an axe-core accessibility audit and return WCAG violations */
   ACCESSIBILITY_AUDIT: "accessibility_audit",
+  /** Read from or write to the system clipboard */
+  CLIPBOARD: "clipboard",
 } as const;
 
 /** Union type of all valid tool name strings */

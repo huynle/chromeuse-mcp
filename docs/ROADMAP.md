@@ -111,8 +111,9 @@ Turn `resize_window` into real responsive / edge-case testing.
   precise coverage + CSS rule-usage tracking (function-level JS, rule-level CSS).
 - 🔭 **Source-level debugging.** Set breakpoints and inspect scopes via the
   CDP `Debugger` domain.
-- 🔭 **Clipboard read/write.** Cross-app glue; reliable clipboard access from an
-  MV3 worker requires an offscreen document and user-gesture handling.
+- ✅ **Clipboard read/write** (`clipboard`). Via the offscreen document
+  (textarea + execCommand for write, navigator.clipboard for read). Read can
+  fail when the browser blocks unfocused reads — the tool reports that clearly.
 
 ---
 

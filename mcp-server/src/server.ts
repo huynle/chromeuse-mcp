@@ -938,6 +938,19 @@ const TOOL_SCHEMAS: Tool[] = [
       required: ["tabId"],
     },
   },
+  {
+    name: TOOL_NAMES.CLIPBOARD,
+    description:
+      "Read from or write to the system clipboard. 'write' copies text; 'read' returns clipboard text (may fail when the browser blocks unfocused clipboard reads).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: { type: "string", enum: ["read", "write"], description: "Clipboard action." },
+        text: { type: "string", description: "Text to copy (required for write)." },
+      },
+      required: ["action"],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------

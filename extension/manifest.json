@@ -17,7 +17,9 @@
     "downloads",
     "cookies",
     "history",
-    "bookmarks"
+    "bookmarks",
+    "clipboardRead",
+    "clipboardWrite"
   ],
   "host_permissions": [
     "<all_urls>"
