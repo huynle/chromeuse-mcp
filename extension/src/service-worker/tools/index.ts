@@ -43,6 +43,7 @@ import { TabSessionTool } from "./tabSession.js";
 import { HistorySearchTool } from "./historySearch.js";
 import { BookmarksTool } from "./bookmarks.js";
 import { CoverageTool } from "./coverage.js";
+import { AccessibilityAuditTool } from "./accessibilityAudit.js";
 
 /**
  * Register all tool handlers with the message router.
@@ -85,6 +86,7 @@ export function registerTools(router: MessageRouter): void {
   router.register(TOOL_NAMES.HISTORY_SEARCH, new HistorySearchTool());
   router.register(TOOL_NAMES.BOOKMARKS, new BookmarksTool());
   router.register(TOOL_NAMES.COVERAGE, new CoverageTool());
+  router.register(TOOL_NAMES.ACCESSIBILITY_AUDIT, new AccessibilityAuditTool());
 
   console.log(
     "[Tools] Registered:",

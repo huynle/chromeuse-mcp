@@ -923,6 +923,21 @@ const TOOL_SCHEMAS: Tool[] = [
       required: ["tabId", "action"],
     },
   },
+  {
+    name: TOOL_NAMES.ACCESSIBILITY_AUDIT,
+    description:
+      "Run an axe-core accessibility audit on a tab and return WCAG violations (id, impact, help, affected node count, sample targets). Optionally scope to a selector or filter by rule tags like wcag2a/wcag2aa.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tabId: { type: "number", description: "Target tab ID." },
+        tags: { type: "array", items: { type: "string" }, description: "Rule tags to run, e.g. [\"wcag2a\",\"wcag2aa\"]. Default: all." },
+        selector: { type: "string", description: "Scope the audit to a CSS selector." },
+        maxViolations: { type: "number", description: "Maximum violations to return (default 50)." },
+      },
+      required: ["tabId"],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------

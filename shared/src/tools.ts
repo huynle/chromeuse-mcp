@@ -75,6 +75,8 @@ export const TOOL_NAMES = {
   BOOKMARKS: "bookmarks",
   /** Measure JavaScript and CSS coverage (unused code) */
   COVERAGE: "coverage",
+  /** Run an axe-core accessibility audit and return WCAG violations */
+  ACCESSIBILITY_AUDIT: "accessibility_audit",
 } as const;
 
 /** Union type of all valid tool name strings */

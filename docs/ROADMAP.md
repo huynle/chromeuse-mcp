@@ -105,8 +105,8 @@ Turn `resize_window` into real responsive / edge-case testing.
   selector-generation strategy.
 - 🔭 **Scheduled automations.** Run a saved tool sequence on a cron-like
   schedule (`chrome.alarms`), surfacing results in the side panel.
-- 🔭 **Accessibility audit (axe-core).** Inject `axe-core` and return WCAG
-  violations. Heavier because it bundles a large library.
+- ✅ **Accessibility audit** (`accessibility_audit`). Inject `axe-core` and
+  return WCAG violations (id, impact, affected nodes, sample targets).
 - ✅ **JS/CSS coverage** (`coverage`). Report unused JavaScript/CSS via CDP
   precise coverage + CSS rule-usage tracking (function-level JS, rule-level CSS).
 - 🔭 **Source-level debugging.** Set breakpoints and inspect scopes via the

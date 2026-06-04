@@ -50,6 +50,7 @@ const contentScriptOptions: esbuild.BuildOptions = {
     join(__dirname, 'src/content-scripts/accessibilityTree.ts'),
     join(__dirname, 'src/content-scripts/markdownDocumentRenderer.ts'),
     join(__dirname, 'src/content-scripts/visualIndicator.ts'),
+    join(__dirname, 'src/content-scripts/axeAudit.ts'),
   ],
   // Content scripts run in page context — no module support
   format: 'iife',
