@@ -35,6 +35,10 @@ import { NetworkInterceptTool } from "./networkIntercept.js";
 import { CookiesTool } from "./cookies.js";
 import { StorageTool } from "./storage.js";
 import { EmulateTool } from "./emulate.js";
+import { PerformanceMetricsTool } from "./performanceMetrics.js";
+import { ScreenshotElementTool } from "./screenshotElement.js";
+import { PrintToPdfTool } from "./printToPdf.js";
+import { ExtractStructuredTool } from "./extractStructured.js";
 
 /**
  * Register all tool handlers with the message router.
@@ -69,6 +73,10 @@ export function registerTools(router: MessageRouter): void {
   router.register(TOOL_NAMES.COOKIES, new CookiesTool());
   router.register(TOOL_NAMES.STORAGE, new StorageTool());
   router.register(TOOL_NAMES.EMULATE, new EmulateTool());
+  router.register(TOOL_NAMES.PERFORMANCE_METRICS, new PerformanceMetricsTool());
+  router.register(TOOL_NAMES.SCREENSHOT_ELEMENT, new ScreenshotElementTool());
+  router.register(TOOL_NAMES.PRINT_TO_PDF, new PrintToPdfTool());
+  router.register(TOOL_NAMES.EXTRACT_STRUCTURED, new ExtractStructuredTool());
 
   console.log(
     "[Tools] Registered:",

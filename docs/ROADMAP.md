@@ -76,10 +76,10 @@ Turn `resize_window` into real responsive / edge-case testing.
 
 | Tool | Status | What it does |
 | --- | --- | --- |
-| `performance_metrics` | ⏳ | Capture load timings + Core Web Vitals (LCP/CLS/FCP/TTFB) and key resource stats for a tab. CDP `Performance` + in-page Performance APIs. |
-| `screenshot_element` | ⏳ | Screenshot a single element by selector (CDP `clip`), instead of the whole viewport — ideal for capturing one chart/component. |
-| `print_to_pdf` | ⏳ | Render the page to PDF (`Page.printToPDF`) and save it to the workspace or Downloads. |
-| `extract_structured` | ⏳ | Extract a table or repeated list into structured JSON (and optionally save as JSON/CSV to the workspace). |
+| `performance_metrics` | ✅ | Capture load timings + Core Web Vitals (LCP/CLS/FCP/TTFB) and key resource stats for a tab. CDP `Performance` + in-page Performance APIs. |
+| `screenshot_element` | ✅ | Screenshot a single element by selector (CDP `clip`), instead of the whole viewport — ideal for capturing one chart/component. |
+| `print_to_pdf` | ✅ | Render the page to PDF (`Page.printToPDF`) and save it to the workspace or Downloads. |
+| `extract_structured` | ✅ | Extract a table or repeated list into structured JSON (and optionally save as JSON/CSV to the workspace). |
 
 **Effort:** S–M each · **Permissions:** none new.
 

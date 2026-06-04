@@ -811,6 +811,61 @@ const TOOL_SCHEMAS: Tool[] = [
       required: ["tabId", "action"],
     },
   },
+  {
+    name: TOOL_NAMES.PERFORMANCE_METRICS,
+    description:
+      "Capture page load timings (TTFB, DOMContentLoaded, load), Core Web Vitals (FCP, LCP, CLS), a resource transfer summary, and runtime metrics (JS heap, DOM nodes) for a tab.",
+    inputSchema: {
+      type: "object",
+      properties: { tabId: { type: "number", description: "Target tab ID." } },
+      required: ["tabId"],
+    },
+  },
+  {
+    name: TOOL_NAMES.SCREENSHOT_ELEMENT,
+    description:
+      "Screenshot a single element by CSS selector (scrolls it into view and clips to its bounds), instead of the whole viewport. Returns a PNG image.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tabId: { type: "number", description: "Target tab ID." },
+        selector: { type: "string", description: "CSS selector of the element to capture." },
+        padding: { type: "number", description: "Extra pixels around the element (default 0)." },
+      },
+      required: ["tabId", "selector"],
+    },
+  },
+  {
+    name: TOOL_NAMES.PRINT_TO_PDF,
+    description:
+      "Render the page to PDF (Page.printToPDF) and save it. When outputPath is provided it is written to the selected workspace; otherwise the PDF is saved to the browser's Downloads folder.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tabId: { type: "number", description: "Target tab ID." },
+        outputPath: { type: "string", description: "Optional workspace-relative path to save the PDF." },
+        filename: { type: "string", description: "Filename for the Downloads fallback (default page.pdf)." },
+        landscape: { type: "boolean", description: "Landscape orientation (default false)." },
+        printBackground: { type: "boolean", description: "Print background graphics (default true)." },
+      },
+      required: ["tabId"],
+    },
+  },
+  {
+    name: TOOL_NAMES.EXTRACT_STRUCTURED,
+    description:
+      "Extract a table or a repeated list into structured JSON. Point selector at a <table> (returns headers + rows) or at a repeated element set (returns a list of text). Optionally save the JSON to the selected workspace via outputPath.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tabId: { type: "number", description: "Target tab ID." },
+        selector: { type: "string", description: "CSS selector of the table or repeated elements." },
+        as: { type: "string", enum: ["auto", "table", "list"], description: "Extraction mode (default auto)." },
+        outputPath: { type: "string", description: "Optional workspace-relative path to save the JSON." },
+      },
+      required: ["tabId", "selector"],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------

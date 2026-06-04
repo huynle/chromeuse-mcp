@@ -59,6 +59,14 @@ export const TOOL_NAMES = {
   STORAGE: "storage",
   /** Emulate device metrics, geolocation, color scheme, and network/CPU throttling */
   EMULATE: "emulate",
+  /** Capture load timings, Core Web Vitals, and runtime metrics */
+  PERFORMANCE_METRICS: "performance_metrics",
+  /** Screenshot a single element by CSS selector */
+  SCREENSHOT_ELEMENT: "screenshot_element",
+  /** Render the page to PDF and save it */
+  PRINT_TO_PDF: "print_to_pdf",
+  /** Extract a table or repeated list into structured JSON */
+  EXTRACT_STRUCTURED: "extract_structured",
 } as const;
 
 /** Union type of all valid tool name strings */
