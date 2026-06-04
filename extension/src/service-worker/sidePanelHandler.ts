@@ -20,6 +20,7 @@ import { updateBadge } from "./badge.js";
 import { clearAutomationIndicators } from "./automationIndicator.js";
 import { clearUserStop, stopActiveToolRequests } from "./toolRequestHandler.js";
 import { webSocketConnection } from "./webSocketConnection.js";
+import { setAutoConnectEnabled } from "./autoConnect.js";
 
 /** Maximum number of tool execution entries to keep in memory */
 const MAX_HISTORY = 200;
@@ -244,11 +245,15 @@ export function initSidePanelHandler(): void {
 
         case "sidepanel_connect":
           clearUserStop();
+          void setAutoConnectEnabled(true);
           webSocketConnection.connect();
           sendResponse({ success: true });
           return false;
 
         case "sidepanel_disconnect":
+          // Persist an explicit opt-out so background auto-connect does not
+          // immediately reconnect behind the user's back.
+          void setAutoConnectEnabled(false);
           webSocketConnection.disconnect();
           sendResponse({ success: true });
           return false;

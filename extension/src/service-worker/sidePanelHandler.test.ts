@@ -53,6 +53,12 @@ const chromeStub = {
     create: vi.fn(),
     clear: vi.fn(),
   },
+  storage: {
+    local: {
+      get: vi.fn(() => Promise.resolve({})),
+      set: vi.fn(() => Promise.resolve()),
+    },
+  },
 };
 
 Object.assign(globalThis, { chrome: chromeStub });
@@ -107,6 +113,9 @@ describe("sidePanelHandler", () => {
     expect(webSocketConnection.disconnect).toHaveBeenCalledOnce();
     expect(nativeMessaging.connect).not.toHaveBeenCalled();
     expect(nativeMessaging.disconnect).not.toHaveBeenCalled();
+    // Connect enables background auto-connect; Disconnect persists an opt-out.
+    expect(chromeStub.storage.local.set).toHaveBeenCalledWith({ "chromeuse:autoConnect": true });
+    expect(chromeStub.storage.local.set).toHaveBeenCalledWith({ "chromeuse:autoConnect": false });
   });
 
   it("stops automation without disconnecting an active WebSocket", () => {

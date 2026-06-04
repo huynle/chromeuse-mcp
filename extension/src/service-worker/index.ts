@@ -19,6 +19,7 @@ import { messageRouter } from "./messageRouter.js";
 import { updateBadge } from "./badge.js";
 import { cdpManager } from "./cdp.js";
 import { resolveBrowserTransportStatus } from "./connectionStatus.js";
+import { ensureAutoConnect, initAutoConnect } from "./autoConnect.js";
 import { initAutomationIndicator } from "./automationIndicator.js";
 import {
   initSidePanelHandler,
@@ -86,6 +87,12 @@ function syncBrowserTransportStatus(): void {
 nativeMessaging.onConnectionStatusChange(syncBrowserTransportStatus);
 webSocketConnection.onConnectionStatusChange(syncBrowserTransportStatus);
 
+// Auto-connect to the gateway in the background so ChromeUse is ready to use
+// without a manual Connect click. Respects an explicit user Disconnect, which
+// persists an opt-out (see autoConnect.ts). The keepalive alarm re-establishes
+// the connection whenever the service worker wakes after being suspended.
+initAutoConnect();
+
 // ---------------------------------------------------------------------------
 // Lifecycle Events
 // ---------------------------------------------------------------------------
@@ -97,15 +104,19 @@ chrome.runtime.onInstalled.addListener((details) => {
   console.log("[ServiceWorker] Installed:", details.reason);
 
   if (details.reason === "install") {
-    // First install - show disconnected status
+    // First install - show disconnected status until the gateway is reachable.
     updateBadge("disconnected");
   }
+
+  // Get ready in the background right after install/update.
+  void ensureAutoConnect();
 });
 
 /**
- * Handle service worker startup (e.g., after being suspended).
- * Re-establish native messaging connection.
+ * Handle service worker startup (e.g., after being suspended or browser launch).
+ * Re-establish the background gateway connection.
  */
 chrome.runtime.onStartup.addListener(() => {
   console.log("[ServiceWorker] Starting up");
+  void ensureAutoConnect();
 });

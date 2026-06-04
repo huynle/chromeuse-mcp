@@ -54,7 +54,7 @@ MCP client -> mcp-server -> WebSocket or native-host -> Chrome extension
 
 The gateway entry point, `gateway/dist/index.js`, lets multiple OpenCode instances share one ChromeUse extension connection by default with no environment variables. The first process binds the local HTTP gateway on `127.0.0.1:8766` and owns the WebSocket bridge on `127.0.0.1:8765`. Later OpenCode instances detect that compatible gateway and become PROXY processes that forward tool calls to the SERVER instead of opening another extension bridge.
 
-The gateway MVP is WebSocket-only for browser traffic. Open the ChromeUse side panel and click **Connect** to attach the extension to `ws://127.0.0.1:8765` by default. This Connect flow is not a native messaging bypass and it still requires a gateway SERVER process to be running.
+The gateway MVP is WebSocket-only for browser traffic. By default the extension auto-connects in the background to `ws://127.0.0.1:8765` and keeps the connection alive across service-worker restarts, so ChromeUse is ready to use without any manual step. The side panel still exposes **Connect**/**Disconnect** for manual control; clicking **Disconnect** opts out of background auto-connect until you click **Connect** again. Auto-connect is not a native messaging bypass and it still requires a gateway SERVER process to be running.
 
 Native messaging remains available only on the direct `mcp-server/dist/index.js` path. In that path, the extension asks Chrome to launch the native host. The native host opens a Unix socket at `/tmp/chromeuse-browser-bridge-{user}/{pid}.sock`, and the MCP server connects to that socket when a client makes a tool call.
 
@@ -197,10 +197,12 @@ Use `gateway/dist/index.js` for shared OpenCode gateway behavior. Use `mcp-serve
 
 1. Restart your MCP client so it starts `gateway/dist/index.js`.
 2. Open a normal web page in the browser where the extension is loaded.
-3. Open the ChromeUse MCP side panel from the extension toolbar.
-4. Click **Connect** to use the localhost WebSocket transport.
-5. Ask your MCP client to call `tabs_context`.
-6. Use one returned `tabId` with `read_page` or `computer` screenshot.
+3. The extension auto-connects to the localhost WebSocket transport in the
+   background. Open the ChromeUse MCP side panel from the extension toolbar to
+   confirm the status shows **Connected** (or click **Connect** if you had
+   previously disconnected).
+4. Ask your MCP client to call `tabs_context`.
+5. Use one returned `tabId` with `read_page` or `computer` screenshot.
 
 The WebSocket bridge listens on `127.0.0.1:8765` by default. Keep that port free for the side panel Connect flow. Advanced setups can set `CHROMEUSE_WS_PORT=<port>` in the MCP client server environment, but the extension must connect to the same WebSocket URL. Gateway mode does not use native messaging fallback; configure `mcp-server/dist/index.js` directly if you need that fallback.
 

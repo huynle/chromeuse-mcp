@@ -114,10 +114,11 @@ Symptoms:
 
 Checks:
 
-1. For WebSocket, open the side panel and click **Connect** after the MCP client has started the server.
-2. For native messaging fallback, confirm the native host manifest includes the current extension ID.
-3. Reload the extension after rebuilding or reinstalling.
-4. Restart the browser if Chrome has cached an old native messaging manifest.
+1. For WebSocket, the extension auto-connects in the background once a gateway SERVER is running. Open the side panel to confirm the status; if you previously clicked **Disconnect**, click **Connect** to re-enable background auto-connect.
+2. Confirm a gateway SERVER process is actually running (the MCP client must have started `gateway/dist/index.js`, and ports `8765`/`8766` should be listening).
+3. For native messaging fallback, confirm the native host manifest includes the current extension ID.
+4. Reload the extension after rebuilding or reinstalling.
+5. Restart the browser if Chrome has cached an old native messaging manifest.
 
 ## MCP Client Cannot Connect to the Native Host
 
