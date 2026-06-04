@@ -18,7 +18,8 @@ class MockWebSocket {
   send = vi.fn();
   close = vi.fn(() => {
     this.readyState = MockWebSocket.CLOSED;
-    this.onclose?.(new CloseEvent("close"));
+    // Use a plain Event (Node 20 has no global CloseEvent); the handler ignores it.
+    this.onclose?.(new Event("close") as CloseEvent);
   });
 
   constructor(url: string) {
@@ -41,7 +42,8 @@ class MockWebSocket {
 
   serverClose() {
     this.readyState = MockWebSocket.CLOSED;
-    this.onclose?.(new CloseEvent("close"));
+    // Use a plain Event (Node 20 has no global CloseEvent); the handler ignores it.
+    this.onclose?.(new Event("close") as CloseEvent);
   }
 }
 
