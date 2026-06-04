@@ -24,7 +24,14 @@ ChromeUse MCP exposes browser automation tools plus workspace and document found
 | Form and file workflows | `form_input`, `file_upload` | Fill inputs, selects, checkboxes, radio buttons, contenteditable fields, and file inputs. |
 | File operations | `workspace_write_file`, `save_resource` | Write files inside the selected workspace and save authenticated resources to a workspace-relative path or browser Downloads. |
 | Debugging | `javascript_tool`, `read_console_messages`, `read_network_requests` | Run JavaScript through Chrome DevTools Protocol and inspect captured console/network activity. |
-| Tab management | `tabs_context`, `tabs_create`, `tabs_close` | List tabs and tab groups, create tabs, and close one or more tabs by ID. |
+| Synchronization | `wait_for` | Wait for a selector, page text, network idle, or a console message before continuing — reliable multi-step flows. |
+| Network control | `network_intercept` | Mock, block, or fail matching requests (stub APIs, force error states). |
+| Browser state | `cookies`, `storage` | Inspect and mutate cookies, `localStorage`, and `sessionStorage` (auth flows, reset state). |
+| Emulation | `emulate` | Emulate device metrics, touch, user-agent, geolocation, color scheme, and network/CPU throttling. |
+| Performance & capture | `performance_metrics`, `screenshot_element`, `print_to_pdf` | Capture Core Web Vitals and timings, screenshot one element, or save the page as PDF. |
+| Data extraction | `extract_structured` | Extract a table or repeated list into structured JSON (optionally saved to the workspace). |
+| Tab management | `tabs_context`, `tabs_create`, `tabs_close`, `tab_session` | List/create/close tabs and tab groups, and save/restore named tab sessions. |
+| Browser data | `history_search`, `bookmarks` | Search browsing history and search/list/create bookmarks. |
 | Recording | `gif_creator` | Capture browser workflows as animated GIFs. |
 | Workspace foundation | workspace tools | Work with a user-selected local folder through the Chrome extension side panel and browser-granted File System Access handles. |
 | Document foundation | `markdown_render` | Render safe markdown from supplied text or selected workspace files. PDF and Office viewers are placeholder/extensible shells in this foundation phase. |

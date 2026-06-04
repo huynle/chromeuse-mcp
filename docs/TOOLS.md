@@ -351,6 +351,87 @@ The side panel document router sends markdown files to preview/source rendering 
 3. Call `find` for `sign in button`.
 4. Call `computer` action `click` on the returned button ref.
 
+## Synchronization, debugging, and automation tools
+
+These tools build on the Chrome DevTools Protocol and Chrome extension APIs.
+Most are `tabId`-scoped; `cookies`, `history_search`, `bookmarks`, and
+`tab_session` are browser-scoped.
+
+### `wait_for`
+
+Block until a page condition holds, instead of guessing a delay. `for` is one
+of `selector` (visible), `selector_hidden`, `text` (present in body),
+`network_idle`, or `console` (a message matches `pattern`). Supports
+`timeoutMs` (default 10000), `idleMs` (network idle window, default 500), and
+`pollMs`. Returns `satisfied` and `waitedMs`, or a timeout error.
+
+### `network_intercept`
+
+Mock or block requests via the Fetch domain. `action`: `mock` (return
+`status`/`body`/`contentType`/`headers`), `block` (fail the request), `list`,
+or `clear`. Matches by `urlPattern` (substring, or glob when it contains `*`)
+plus optional `method`. Non-matching paused requests are continued untouched.
+
+### `cookies`
+
+`action`: `get` (by `url` or `domain`), `set` (`url`+`name`+`value`, optional
+`path`/`secure`/`httpOnly`/`expirationDate`/`sameSite`), `delete` (`url`+`name`),
+`clear` (by `url` or `domain`). Requires the `cookies` permission.
+
+### `storage`
+
+Read/write a tab's `localStorage` or `sessionStorage`. `action`: `get` (one
+`key`, or all when omitted), `set` (`key`+`value`), `remove` (`key`), `clear`.
+Choose `area` of `local` (default) or `session`.
+
+### `emulate`
+
+`action`: `device` (`preset` such as `iphone-12`/`pixel-5`/`ipad`/`desktop`, or
+explicit `width`/`height`/`deviceScaleFactor`/`mobile`/`touch`), `user_agent`,
+`geolocation` (`latitude`/`longitude`/`accuracy`), `color_scheme`
+(`light`/`dark`/`no-preference`), `network` (`profile` of
+`online`/`offline`/`slow-3g`/`fast-3g`), `cpu` (`rate` slowdown), or `reset`.
+
+### `performance_metrics`
+
+Returns navigation timings (TTFB, DOMContentLoaded, load), Core Web Vitals
+(FCP, LCP, CLS), a resource transfer summary, and runtime metrics (JS heap,
+DOM nodes) for a `tabId`.
+
+### `screenshot_element`
+
+Screenshot a single element by `selector` (scrolled into view and clipped to
+its bounds), with optional `padding`. Returns a PNG image.
+
+### `print_to_pdf`
+
+Render the page to PDF. With a workspace-relative `outputPath` it is written to
+the selected workspace; otherwise it downloads (`filename`, default `page.pdf`).
+Options: `landscape`, `printBackground`.
+
+### `extract_structured`
+
+Extract a `<table>` (headers + rows) or a repeated element set (`selector`) into
+structured JSON. `as` is `auto` (default), `table`, or `list`. With a
+workspace-relative `outputPath`, the JSON is also saved.
+
+### `tab_session`
+
+`action`: `save` (snapshot a window's tabs and groups under a `name`),
+`restore` (open them in a new window, recreating groups), `list`, `delete`.
+Sessions persist in `chrome.storage.local`.
+
+### `history_search`
+
+Search browsing history by `query`, `maxResults` (default 50), and `days`
+(time window). Requires the `history` permission.
+
+### `bookmarks`
+
+`action`: `search` (`query`), `list` (children of folder `id`, root when
+omitted), `create` (`title`+optional `url`, optional `parentId`). Requires the
+`bookmarks` permission.
+
 ## Safety Guidance
 
 - Confirm the target `tabId` before destructive actions.
