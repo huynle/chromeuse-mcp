@@ -51,6 +51,7 @@ const contentScriptOptions: esbuild.BuildOptions = {
     join(__dirname, 'src/content-scripts/markdownDocumentRenderer.ts'),
     join(__dirname, 'src/content-scripts/visualIndicator.ts'),
     join(__dirname, 'src/content-scripts/axeAudit.ts'),
+    join(__dirname, 'src/content-scripts/macroRecorder.ts'),
   ],
   // Content scripts run in page context — no module support
   format: 'iife',

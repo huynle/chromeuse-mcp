@@ -81,6 +81,8 @@ export const TOOL_NAMES = {
   CLIPBOARD: "clipboard",
   /** Set a breakpoint, capture program state on hit, then resume */
   DEBUG_INSPECT: "debug_inspect",
+  /** Record, replay, and schedule UI interaction macros */
+  MACRO: "macro",
 } as const;
 
 /** Union type of all valid tool name strings */

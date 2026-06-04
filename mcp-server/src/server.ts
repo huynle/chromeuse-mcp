@@ -969,6 +969,25 @@ const TOOL_SCHEMAS: Tool[] = [
       required: ["tabId", "urlRegex", "lineNumber"],
     },
   },
+  {
+    name: TOOL_NAMES.MACRO,
+    description:
+      "Record, replay, and schedule UI interaction macros. 'record_start' (tabId) injects a recorder that captures clicks, input changes, and navigations; 'record_stop' (tabId, name) saves them. 'replay' (name, tabId) re-runs the steps; 'schedule' (name, periodMinutes) replays on a recurring alarm in a background tab; 'list'/'get'/'delete'/'unschedule' manage macros.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["record_start", "record_stop", "list", "get", "delete", "replay", "schedule", "unschedule"],
+          description: "Macro action.",
+        },
+        name: { type: "string", description: "Macro name (required for record_stop/get/delete/replay/schedule/unschedule)." },
+        tabId: { type: "number", description: "Target tab (required for record_start/record_stop/replay)." },
+        periodMinutes: { type: "number", description: "Replay interval in minutes for 'schedule' (>= 1)." },
+      },
+      required: ["action"],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------

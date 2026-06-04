@@ -99,12 +99,13 @@ Turn `resize_window` into real responsive / edge-case testing.
 
 ## Future (larger efforts, not yet scheduled)
 
-- 🔭 **Interaction recorder → replayable macro.** Capture real user
-  clicks/typing/navigations via a content script into a workspace script that
-  can be replayed or scheduled. Needs in-page recording UI and a robust
-  selector-generation strategy.
-- 🔭 **Scheduled automations.** Run a saved tool sequence on a cron-like
-  schedule (`chrome.alarms`), surfacing results in the side panel.
+- ✅ **Interaction recorder → replayable macro** (`macro`). Capture real user
+  clicks/input/navigations via a content script with generated selectors, save
+  named macros, and replay them. (Recording state is in-memory; a side-panel
+  recording UI is a possible refinement.)
+- ✅ **Scheduled automations** (`macro` action `schedule`). Replay a saved
+  macro on a recurring `chrome.alarms` interval in a background tab, storing the
+  last-run result.
 - ✅ **Accessibility audit** (`accessibility_audit`). Inject `axe-core` and
   return WCAG violations (id, impact, affected nodes, sample targets).
 - ✅ **JS/CSS coverage** (`coverage`). Report unused JavaScript/CSS via CDP

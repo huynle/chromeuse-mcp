@@ -46,6 +46,7 @@ import { CoverageTool } from "./coverage.js";
 import { AccessibilityAuditTool } from "./accessibilityAudit.js";
 import { ClipboardTool } from "./clipboard.js";
 import { DebugInspectTool } from "./debugInspect.js";
+import { MacroTool } from "./macro.js";
 
 /**
  * Register all tool handlers with the message router.
@@ -91,6 +92,7 @@ export function registerTools(router: MessageRouter): void {
   router.register(TOOL_NAMES.ACCESSIBILITY_AUDIT, new AccessibilityAuditTool());
   router.register(TOOL_NAMES.CLIPBOARD, new ClipboardTool());
   router.register(TOOL_NAMES.DEBUG_INSPECT, new DebugInspectTool());
+  router.register(TOOL_NAMES.MACRO, new MacroTool());
 
   console.log(
     "[Tools] Registered:",
